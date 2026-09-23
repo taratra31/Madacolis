@@ -18,15 +18,16 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
  */
 const corsOrigin =
   process.env.NODE_ENV === "production"
-    ? [
-        appConfig.frontendUrl,
-        "http://localhost:5173",
-        "http://localhost:5174",
-        "http://localhost:5175",
-        "http://localhost:5176",
-        "http://localhost:5177",
-        "http://localhost:5178",
-      ]
+    ? (origin: string | undefined, cb: (err: Error | null, allow?: boolean) => void) => {
+        if (!origin) return cb(null, true); // pas d'origine (mobile natif / curl)
+        const allow =
+          origin === appConfig.frontendUrl ||
+          /^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(origin) ||
+          /^https:\/\/[a-z0-9-]+\.netlify\.app$/.test(origin) ||
+          /^https:\/\/[a-z0-9-]+\.onrender\.com$/.test(origin) ||
+          /^https?:\/\/localhost:517[3-8]$/.test(origin);
+        cb(null, allow);
+      }
     : (origin: string | undefined, cb: (err: Error | null, allow?: boolean) => void) => {
         if (!origin) return cb(null, true); // pas d'origine (mobile natif / curl)
         const allow =

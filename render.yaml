@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: madacolis-api
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: cd backend && npm ci && npm run prisma:generate && npm run build
+    startCommand: cd backend && npx prisma migrate deploy && npm run start
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: FRONTEND_URL
+        sync: false
+      - key: GOOGLE_MAPS_API_KEY
+        sync: false
+      - key: AMAZON_ACCESS_KEY
+        sync: false
+      - key: AMAZON_SECRET_KEY
+        sync: false
+      - key: AMAZON_PARTNER_TAG
+        sync: false

@@ -1,0 +1,319 @@
+// MadaColis — Schéma de base de données (PostgreSQL + Prisma)
+// Plateforme de livraison de colis Madagascar ↔ France
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Role {
+  CUSTOMER
+  ADMIN
+  AGENT
+  TRANSITAIRE
+}
+
+enum ServiceType {
+  STANDARD
+  EXPRESS
+  ECONOMY
+}
+
+enum ShipmentStatus {
+  PENDING
+  RECEIVED
+  IN_TRANSIT
+  IN_CUSTOMS
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+}
+
+enum Currency {
+  EUR
+  MGA
+  USD
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum PaymentProvider {
+  MVOLA
+  ORANGE_MONEY
+  AIRTEL_MONEY
+  CARD
+  CASH
+}
+
+enum PaymentMethod {
+  MOBILE_MONEY
+  CARD
+  CASH
+}
+
+enum DocumentType {
+  IDENTITY
+  INVOICE
+  PROOF_OF_ADDRESS
+  CUSTOMS_FORM
+}
+
+enum DocumentStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+// ---------------------------------------------------------------------------
+// Modèles
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String?  @unique
+  phone        String   @unique
+  passwordHash String
+  role         Role     @default(CUSTOMER)
+  country      String?  @default("Madagascar")
+  city         String?
+  address      String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  /** Transporteur (transitaire) représenté — ex: "dhl", "fedex", "agl"… */
+  carrierId String?
+
+  addresses     Address[]
+  shipments     Shipment[]
+  payments      Payment[]
+  documents     Document[]
+  auditLogs     AuditLog[]
+
+  @@index([role])
+  @@index([country, city])
+  @@index([carrierId])
+}
+
+model Address {
+  id           String   @id @default(uuid())
+  userId       String
+  label        String
+  country      String
+  city         String
+  region       String?
+  addressLine  String
+  postalCode   String?
+  phone        String
+  latitude     Decimal? @db.Decimal(10, 7)
+  longitude    Decimal? @db.Decimal(10, 7)
+  isDefault    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  originShipments      Shipment[] @relation("OriginAddress")
+  destinationShipments Shipment[] @relation("DestinationAddress")
+
+  @@index([userId])
+  @@index([country, city])
+  @@index([isDefault])
+}
+
+model Shipment {
+  id                     String         @id @default(uuid())
+  userId                 String
+  trackingNumber         String         @unique
+  originCountry          String
+  originCity             String
+  destinationCountry     String
+  destinationCity        String
+  originAddressId        String?
+  destinationAddressId   String?
+  serviceType            ServiceType    @default(STANDARD)
+  status                 ShipmentStatus @default(PENDING)
+  totalWeight            Decimal        @db.Decimal(10, 3)
+  totalVolume            Decimal?       @db.Decimal(10, 3)
+  declaredValue          Decimal        @db.Decimal(14, 2)
+  currency               Currency       @default(MGA)
+  estimatedPrice         Decimal        @db.Decimal(14, 2)
+  finalPrice             Decimal?       @db.Decimal(14, 2)
+  estimatedDeliveryDate  DateTime?
+  actualDeliveryDate     DateTime?
+  senderName             String?
+  senderPhone            String?
+  senderAddress          String?
+  recipientName          String?
+  recipientPhone         String?
+  recipientAddress       String?
+  requiredDocuments      DocumentType[]  @default([])
+  /** Transitaire assigné au colis (ex: "dhl", "fedex"). Null = MadaColis en propre. */
+  carrierId              String?
+  notes                  String?
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  originAddress      Address?                @relation("OriginAddress", fields: [originAddressId], references: [id], onDelete: SetNull)
+  destinationAddress Address?                @relation("DestinationAddress", fields: [destinationAddressId], references: [id], onDelete: SetNull)
+
+  items          ShipmentItem[]
+  statusHistory  ShipmentStatusHistory[]
+  payments       Payment[]
+  documents      Document[]
+
+  @@index([userId])
+  @@index([trackingNumber])
+  @@index([status])
+  @@index([originCountry, destinationCountry])
+  @@index([createdAt])
+  @@index([carrierId])
+}
+
+model ShipmentItem {
+  id            String   @id @default(uuid())
+  shipmentId    String
+  description   String
+  quantity      Int      @default(1)
+  weight        Decimal  @db.Decimal(10, 3)
+  length        Decimal? @db.Decimal(10, 3)
+  width         Decimal? @db.Decimal(10, 3)
+  height        Decimal? @db.Decimal(10, 3)
+  declaredValue Decimal  @db.Decimal(14, 2)
+  isFragile     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  shipment Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+
+  @@index([shipmentId])
+}
+
+model ShipmentStatusHistory {
+  id        String         @id @default(uuid())
+  shipmentId String
+  status    ShipmentStatus
+  comment   String?
+  location  String?
+  changedBy String?
+  createdAt DateTime       @default(now())
+
+  shipment Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+
+  @@index([shipmentId])
+  @@index([status])
+}
+
+model PricingRule {
+  id                  String      @id @default(uuid())
+  name                String
+  originCountry       String
+  destinationCountry  String
+  serviceType         ServiceType
+  basePrice           Decimal     @db.Decimal(14, 2)
+  pricePerKg          Decimal     @db.Decimal(14, 2)
+  pricePerKm          Decimal?    @db.Decimal(14, 2)
+  minimumPrice        Decimal     @db.Decimal(14, 2)
+  currency            Currency    @default(MGA)
+  isActive            Boolean     @default(true)
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  @@unique([originCountry, destinationCountry, serviceType])
+  @@index([isActive])
+}
+
+model DistanceRate {
+  id                   String   @id @default(uuid())
+  originCountry        String
+  originCity           String
+  destinationCountry   String
+  destinationCity      String
+  distanceKm           Decimal  @db.Decimal(10, 3)
+  originLatitude       Decimal? @db.Decimal(10, 7)
+  originLongitude      Decimal? @db.Decimal(10, 7)
+  destinationLatitude  Decimal? @db.Decimal(10, 7)
+  destinationLongitude Decimal? @db.Decimal(10, 7)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@unique([originCountry, originCity, destinationCountry, destinationCity])
+}
+
+model Payment {
+  id               String          @id @default(uuid())
+  shipmentId       String
+  userId           String
+  paymentReference String          @unique
+  provider         PaymentProvider
+  method           PaymentMethod
+  amount           Decimal         @db.Decimal(14, 2)
+  currency         Currency        @default(MGA)
+  status           PaymentStatus   @default(PENDING)
+  transactionId    String?
+  paidAt           DateTime?
+  metadata         Json?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  shipment Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([shipmentId])
+  @@index([userId])
+  @@index([status])
+  @@index([paymentReference])
+}
+
+model Document {
+  id           String         @id @default(uuid())
+  shipmentId   String
+  userId       String
+  type         DocumentType
+  filePath     String
+  originalName String
+  mimeType     String
+  status       DocumentStatus @default(PENDING)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  shipment Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([shipmentId])
+  @@index([userId])
+  @@index([status])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  action    String
+  entityType String
+  entityId   String
+  oldValues Json?
+  newValues Json?
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}

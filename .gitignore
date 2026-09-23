@@ -1,0 +1,28 @@
+# MadaColis
+
+# Dépendances
+node_modules/
+dist/
+
+# Environnement — ne jamais committer les secrets
+.env
+.env.local
+.env.production
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Système
+.DS_Store
+Thumbs.db
+
+# Tests et couverture
+coverage/
+.nyc_output/
+
+# Colima / Docker local
+.colima/

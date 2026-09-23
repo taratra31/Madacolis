@@ -6,13 +6,13 @@ import { useLocale } from "@/contexts/locale";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
-import { whatsappLink } from "@/utils";
+import { whatsappLink, WHATSAPP_NUMBER, CONTACT_EMAIL } from "@/utils";
 
 const INFOS = [
   { icon: MapPin, title: "Adresse agence", lines: ["Lot II A 123, Antananarivo 101, Madagascar", "12 rue de Rivoli, 75004 Paris, France"] },
-  { icon: Phone, title: "Téléphone", lines: ["+261 34 12 345 67 (Madagascar)", "+33 6 12 34 56 78 (France)"] },
+  { icon: Phone, title: "Téléphone / WhatsApp", lines: [`${WHATSAPP_NUMBER} (Madagascar)`] },
   { icon: Clock, title: "Horaires", lines: ["Lun – Sam : 8h00 – 17h00", "WhatsApp : 7j/7"] },
-  { icon: Mail, title: "Email", lines: ["support@madacolis.mg"] },
+  { icon: Mail, title: "Email", lines: [CONTACT_EMAIL] },
 ];
 
 export function ContactPage() {

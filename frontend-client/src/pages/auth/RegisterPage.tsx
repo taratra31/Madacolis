@@ -69,7 +69,7 @@ export function RegisterPage() {
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
         <Input label="Nom complet" placeholder="Jean Rakoto" icon={<User className="size-4" />} autoComplete="name" error={errors.name?.message} {...register("name")} />
         <Input label="Email (optionnel)" type="email" placeholder="vous@exemple.com" icon={<Mail className="size-4" />} error={errors.email?.message} {...register("email")} />
-        <Input label="Téléphone" placeholder="+261 34 12 345 67" icon={<Phone className="size-4" />} autoComplete="tel" error={errors.phone?.message} {...register("phone")} />
+        <Input label="Téléphone" placeholder="+261 32 63 21 784" icon={<Phone className="size-4" />} autoComplete="tel" error={errors.phone?.message} {...register("phone")} />
         <div className="grid grid-cols-2 gap-3">
           <Select
             label="Pays"

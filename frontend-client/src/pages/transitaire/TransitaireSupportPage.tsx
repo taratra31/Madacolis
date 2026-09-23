@@ -1,6 +1,6 @@
 import { Clock, Headphones, Mail, MessageCircle, Phone } from "lucide-react";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
-import { WHATSAPP_NUMBER, whatsappLink } from "@/utils";
+import { WHATSAPP_NUMBER, CONTACT_EMAIL, whatsappLink } from "@/utils";
 
 const FAQ = [
   {
@@ -45,8 +45,8 @@ export function TransitaireSupportPage() {
           <CardBody className="flex flex-col items-center gap-2 p-5 text-center">
             <Mail className="size-8 text-indigo-500" />
             <p className="font-semibold text-slate-900 dark:text-white">Email</p>
-            <p className="text-xs text-slate-500">support@madacolis.mg</p>
-            <a href="mailto:support@madacolis.mg" className="mt-1 inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
+            <p className="text-xs text-slate-500">{CONTACT_EMAIL}</p>
+            <a href={`mailto:${CONTACT_EMAIL}`} className="mt-1 inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
             Envoyer
           </a>
           </CardBody>
@@ -55,8 +55,8 @@ export function TransitaireSupportPage() {
           <CardBody className="flex flex-col items-center gap-2 p-5 text-center">
             <Phone className="size-8 text-blue-500" />
             <p className="font-semibold text-slate-900 dark:text-white">Téléphone</p>
-            <p className="text-xs text-slate-500">+261 34 12 345 67</p>
-            <a href="tel:+261341234567" className="mt-1 inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
+            <p className="text-xs text-slate-500">{WHATSAPP_NUMBER}</p>
+            <a href={`tel:${WHATSAPP_NUMBER}`} className="mt-1 inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
             Appeler
           </a>
           </CardBody>

@@ -59,7 +59,7 @@ export function ForgotPasswordPage() {
         <form onSubmit={onSubmit} className="space-y-4" noValidate>
           <Input
             label="Téléphone du compte"
-            placeholder="+261 34 12 345 67"
+            placeholder="+261 32 63 21 784"
             icon={<Phone className="size-4" />}
             error={errors.phone?.message}
             {...register("phone")}

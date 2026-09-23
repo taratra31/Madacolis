@@ -26,3 +26,4 @@ coverage/
 
 # Colima / Docker local
 .colima/
+.neon

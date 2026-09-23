@@ -102,7 +102,8 @@ export const DOCUMENT_LABELS: Record<DocumentType, string> = {
 export const CITIES_DEPART: string[] = ["Antananarivo", "Toamasina", "Antsiranana", "Mahajanga", "Fianarantsoa", "Toliara", "Nosy Be"];
 export const CITIES_ARRIVEE: string[] = ["Paris", "Marseille", "Lyon", "Toulouse", "Nice", "Nantes", "Bordeaux", "Lille"];
 
-export const WHATSAPP_NUMBER = "+261341234567";
+export const CONTACT_EMAIL = "madaorganisation@gmail.com";
+export const WHATSAPP_NUMBER = "+261326321784";
 
 export function whatsappLink(message?: string): string {
   const text = encodeURIComponent(

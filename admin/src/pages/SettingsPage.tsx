@@ -99,21 +99,21 @@ export default function SettingsPage() {
       <div className="mt-4">
         <Card title="Support" subtitle="Contactez l'équipe technique">
           <div className="grid gap-3 sm:grid-cols-3">
-            <a href="https://wa.me/261340000000" target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-2xl border border-slate-200 p-4 transition hover:border-emerald-300 hover:shadow-md">
+            <a href="https://wa.me/261326321784" target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-2xl border border-slate-200 p-4 transition hover:border-emerald-300 hover:shadow-md">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600"><MessageSquare size={18} /></div>
               <div>
                 <p className="text-sm font-bold text-slate-900">WhatsApp</p>
-                <p className="text-[11px] text-slate-400">+261 34 00 000 00</p>
+                <p className="text-[11px] text-slate-400">+261326321784</p>
               </div>
             </a>
-            <a href="mailto:support@madacolis.mg" className="flex items-center gap-3 rounded-2xl border border-slate-200 p-4 transition hover:border-blue-300 hover:shadow-md">
+            <a href="mailto:madaorganisation@gmail.com" className="flex items-center gap-3 rounded-2xl border border-slate-200 p-4 transition hover:border-blue-300 hover:shadow-md">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600"><Mail size={18} /></div>
               <div>
                 <p className="text-sm font-bold text-slate-900">Email</p>
-                <p className="text-[11px] text-slate-400">support@madacolis.mg</p>
+                <p className="text-[11px] text-slate-400">madaorganisation@gmail.com</p>
               </div>
             </a>
-            <a href="tel:+261340000000" className="flex items-center gap-3 rounded-2xl border border-slate-200 p-4 transition hover:border-indigo-300 hover:shadow-md">
+            <a href="tel:+261326321784" className="flex items-center gap-3 rounded-2xl border border-slate-200 p-4 transition hover:border-indigo-300 hover:shadow-md">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600"><Phone size={18} /></div>
               <div>
                 <p className="text-sm font-bold text-slate-900">Téléphone</p>

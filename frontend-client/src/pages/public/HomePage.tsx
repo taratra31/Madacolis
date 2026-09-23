@@ -186,7 +186,7 @@ export function HomePage() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={t("hero.placeholder")}
-                  className="h-12 w-full rounded-xl border border-slate-200 bg-white py-3 pl-12 pr-32 text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                  className="h-12 w-full rounded-xl border border-slate-200 bg-white py-3 pl-12 pr-28 text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25 dark:border-slate-700 dark:bg-slate-900 dark:text-white sm:pr-32"
                 />
                 <Button type="submit" size="md" className="absolute right-1.5 top-1/2 -translate-y-1/2">
                   <Search className="size-4" /> {t("common.search")}

@@ -126,7 +126,7 @@ export function ProductCard({ product, className }: { product: CatalogProductTyp
           <p className="text-sm text-slate-400">
             {product.weightKg} kg · {product.lengthCm}×{product.widthCm}×{product.heightCm} cm
           </p>
-          <div className="mt-auto flex items-center justify-between gap-2 pt-2">
+          <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-2">
             <span className="flex flex-col leading-tight">
               <span className="text-lg font-bold text-slate-900 dark:text-white">{formatCurrency(product.priceEUR, "EUR")}</span>
               <span className="text-xs text-slate-400">≈ {formatAr(product.priceEUR * 5000)}</span>

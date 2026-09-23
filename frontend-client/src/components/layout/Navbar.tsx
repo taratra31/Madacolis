@@ -73,8 +73,10 @@ export function PublicNavbar() {
           ))}
         </nav>
 
-        <div className="flex items-center gap-2">
-          <LanguageSwitcher />
+        <div className="flex items-center gap-1 sm:gap-2">
+          <div className="hidden sm:block">
+            <LanguageSwitcher />
+          </div>
           <button
             onClick={cycleTheme}
             className="relative rounded-xl p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
@@ -130,6 +132,9 @@ export function PublicNavbar() {
 
       {open && (
         <nav className="border-t border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950 lg:hidden" aria-label="Menu mobile">
+          <div className="mb-3 sm:hidden">
+            <LanguageSwitcher />
+          </div>
           <ul className="space-y-1">
             {NAV_LINKS.map((link) => (
               <li key={link.to}>

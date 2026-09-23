@@ -7,7 +7,7 @@ export function Logo({ className, compact = false }: { className?: string; compa
         <img src="/logo.png" alt="MadaColis" className="size-full object-cover" />
       </span>
       {!compact && (
-        <span className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">
+        <span className="hidden text-lg font-bold tracking-tight text-slate-900 dark:text-white sm:inline">
           Mada<span className="text-blue-600 dark:text-blue-400">Colis</span>
         </span>
       )}

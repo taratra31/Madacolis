@@ -61,6 +61,7 @@ function Orb({
 export function LoginScreen() {
   const insets = useSafeAreaInsets();
   const { login, register, initializing } = useAuth();
+  const passwordRef = useRef<TextInput>(null);
 
   const [mode, setMode] = useState<Mode>("login");
   const [name, setName] = useState("");
@@ -123,7 +124,7 @@ export function LoginScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView
           contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.xl, paddingBottom: insets.bottom + spacing.xl }]}
-          keyboardShouldPersistTaps="handled"
+          keyboardShouldPersistTaps="always"
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.brand}>
@@ -228,6 +229,7 @@ export function LoginScreen() {
                 >
                   <Ionicons name="lock-closed-outline" size={18} color={focused === "password" ? colors.primary : colors.muted} />
                   <TextInput
+                    ref={passwordRef}
                     style={styles.input}
                     value={password}
                     onChangeText={setPassword}
@@ -235,6 +237,7 @@ export function LoginScreen() {
                     placeholderTextColor={colors.muted}
                     secureTextEntry={!showPwd}
                     autoCapitalize="none"
+                    onTouchStart={() => passwordRef.current?.focus()}
                     onFocus={() => setFocused("password")}
                     onBlur={() => setFocused(null)}
                   />
@@ -307,6 +310,8 @@ function InputBlock({
   onFocus: () => void;
   onBlur: () => void;
 }) {
+  const inputRef = useRef<TextInput>(null);
+
   return (
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
@@ -318,6 +323,7 @@ function InputBlock({
       >
         <Ionicons name={icon} size={18} color={focused ? colors.primary : colors.muted} />
         <TextInput
+          ref={inputRef}
           style={styles.input}
           value={value}
           onChangeText={onChangeText}
@@ -329,6 +335,7 @@ function InputBlock({
           autoCorrect={false}
           importantForAutofill="no"
           textContentType="none"
+          onTouchStart={() => inputRef.current?.focus()}
           onFocus={onFocus}
           onBlur={onBlur}
         />

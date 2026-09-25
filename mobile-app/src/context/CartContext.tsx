@@ -1,12 +1,14 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import type { AmazonProduct, CartItem } from "../types";
+import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
+import type { CatalogProduct } from "../types";
 
-const CART_KEY = "madacolis.cart.v1";
+export interface CartItem {
+  product: CatalogProduct;
+  quantity: number;
+}
 
 interface CartContextValue {
   items: CartItem[];
-  addItem: (item: CartItem) => void;
+  addItem: (product: CatalogProduct) => void;
   removeItem: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   clear: () => void;
@@ -14,70 +16,46 @@ interface CartContextValue {
   count: number;
 }
 
-const CartContext = createContext<CartContextValue | null>(null);
+const CartContext = createContext<CartContextValue | undefined>(undefined);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const raw = await AsyncStorage.getItem(CART_KEY);
-        if (raw) setItems(JSON.parse(raw) as CartItem[]);
-      } catch {
-        // ignore
+  const addItem = useCallback((product: CatalogProduct) => {
+    setItems((prev) => {
+      const existing = prev.find((i) => i.product.id === product.id);
+      if (existing) {
+        return prev.map((i) => (i.product.id === product.id ? { ...i, quantity: i.quantity + 1 } : i));
       }
-    })();
+      return [...prev, { product, quantity: 1 }];
+    });
   }, []);
 
-  const persist = async (next: CartItem[]) => {
-    setItems(next);
-    await AsyncStorage.setItem(CART_KEY, JSON.stringify(next)).catch(() => {});
-  };
+  const removeItem = useCallback((productId: string) => {
+    setItems((prev) => prev.filter((i) => i.product.id !== productId));
+  }, []);
 
-  const value = useMemo<CartContextValue>(
-    () => ({
-      items,
-      addItem: (item) => {
-        const next = [...items];
-        const idx = next.findIndex((i) => i.productId === item.productId);
-        if (idx >= 0) {
-          next[idx] = { ...next[idx], quantity: next[idx].quantity + item.quantity };
-        } else {
-          next.push(item);
-        }
-        void persist(next);
-      },
-      removeItem: (productId) => void persist(items.filter((i) => i.productId !== productId)),
-      updateQuantity: (productId, quantity) => {
-        if (quantity <= 0) return void persist(items.filter((i) => i.productId !== productId));
-        void persist(items.map((i) => (i.productId === productId ? { ...i, quantity } : i)));
-      },
-      clear: () => void persist([]),
-      total: items.reduce((sum, i) => sum + i.price * i.quantity, 0),
-      count: items.reduce((sum, i) => sum + i.quantity, 0),
-    }),
-    [items],
-  );
+  const updateQuantity = useCallback((productId: string, quantity: number) => {
+    setItems((prev) =>
+      quantity <= 0
+        ? prev.filter((i) => i.product.id !== productId)
+        : prev.map((i) => (i.product.id === productId ? { ...i, quantity } : i)),
+    );
+  }, []);
+
+  const clear = useCallback(() => setItems([]), []);
+
+  const value = useMemo(() => {
+    const total = items.reduce((sum, i) => sum + i.product.priceEUR * i.quantity, 0);
+    const count = items.reduce((sum, i) => sum + i.quantity, 0);
+    return { items, addItem, removeItem, updateQuantity, clear, total, count };
+  }, [items, addItem, removeItem, updateQuantity, clear]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }
 
 export function useCart(): CartContextValue {
   const ctx = useContext(CartContext);
-  if (!ctx) throw new Error("useCart doit être utilisé dans CartProvider");
+  if (!ctx) throw new Error("useCart must be used within CartProvider");
   return ctx;
 }
-
-export const toCartItem = (p: AmazonProduct): Omit<CartItem, "quantity"> => ({
-  productId: p.asin,
-  name: p.title,
-  imageUrl: p.imageUrl,
-  price: p.priceEUR ?? 0,
-  weightKg: p.weightKg ?? 0.5,
-  lengthCm: p.lengthCm ?? 20,
-  widthCm: p.widthCm ?? 15,
-  heightCm: p.heightCm ?? 10,
-  marketplace: p.url ? "AMAZON" : "MADACOLIS",
-  sourceUrl: p.url ?? null,
-});

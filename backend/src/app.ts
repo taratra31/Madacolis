@@ -25,7 +25,10 @@ const corsOrigin =
           /^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(origin) ||
           /^https:\/\/[a-z0-9-]+\.netlify\.app$/.test(origin) ||
           /^https:\/\/[a-z0-9-]+\.onrender\.com$/.test(origin) ||
-          /^https?:\/\/localhost:517[3-8]$/.test(origin);
+          /^https?:\/\/localhost:517[3-8]$/.test(origin) ||
+          /^https?:\/\/localhost:8081$/.test(origin) ||
+          /^https?:\/\/(\d{1,3}\.){3}\d{1,3}:8081$/.test(origin) ||
+          /^https?:\/\/[a-z0-9-]+\.trycloudflare\.com$/.test(origin);
         cb(null, allow);
       }
     : (origin: string | undefined, cb: (err: Error | null, allow?: boolean) => void) => {

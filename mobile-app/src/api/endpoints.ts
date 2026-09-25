@@ -1,85 +1,47 @@
-import { api } from "./client";
+import { http } from "./client";
 import type {
-  AmazonProduct,
-  AuthResponse,
-  CategoryNode,
+  CatalogProduct,
+  HomeData,
+  Payment,
   QuoteResult,
-  SearchResponse,
-  TrackingInfo,
-  TransitaireRates,
-  TransitaireShipment,
+  ServiceType,
+  Shipment,
+  TrackingResult,
   User,
 } from "../types";
 
-// ---- Catalogue & recherche ----
-export const fetchProducts = (params: { q?: string; limit?: number; skip?: number; category?: string }, signal?: AbortSignal) =>
-  api<SearchResponse>("/pricing/marketplace/products", {
-    query: { q: params.q ?? "", limit: params.limit ?? 24, skip: params.skip ?? 0, category: params.category },
-    signal,
-  });
+export const getHomeData = () => http.get<{ success: boolean } & HomeData>("/pricing/home");
 
-export const searchMarketplace = (q: string, limit = 20) =>
-  api<SearchResponse>("/pricing/marketplace/amazon/search", { query: { q, limit } });
+export const getProducts = (limit = 10, skip = 0) =>
+  http.get<{ success: boolean; products: CatalogProduct[] }>(`/pricing/marketplace/products?limit=${limit}&skip=${skip}`);
 
-export const fetchCategories = () => api<{ categories: CategoryNode[] }>("/pricing/marketplace/categories");
-
-export const fetchProduct = (id: string) =>
-  api<{ product: AmazonProduct }>(`/pricing/marketplace/amazon/product/${encodeURIComponent(id)}`);
-
-export const fetchServices = () =>
-  api<{ services: Array<{ type: string; name: string; delayDays: number }> }>("/pricing/services");
-
-// ---- Devis ----
-export interface ProductQuotePayload {
-  title?: string;
-  link?: string;
-  quantity: number;
+export const quoteShipment = (payload: {
+  originCountry: string;
+  originCity: string;
+  destinationCountry: string;
+  destinationCity: string;
+  serviceType: ServiceType;
   weightKg: number;
   lengthCm?: number;
   widthCm?: number;
   heightCm?: number;
-  declaredValueEUR?: number;
-  shippingMethod?: "AIR" | "SEA";
-  fragile?: boolean;
-  destinationCountry: string;
-  destinationCity: string;
-  serviceType: "STANDARD" | "EXPRESS" | "ECONOMY";
-}
+  declaredValue?: number;
+}) => http.post<{ success: boolean } & QuoteResult>("/pricing/quote", payload);
 
-export const requestQuote = (payload: ProductQuotePayload) =>
-  api<{ success: boolean; quote: QuoteResult }>("/pricing/product-quote", { method: "POST", body: payload });
-
-// ---- Suivi colis ----
 export const trackShipment = (trackingNumber: string) =>
-  api<{ success: boolean; tracking: TrackingInfo }>(`/tracking/${encodeURIComponent(trackingNumber)}`);
+  http.get<{ success: boolean; shipment: TrackingResult }>(`/tracking/${encodeURIComponent(trackingNumber)}`);
 
-// ---- Compte ----
 export const login = (identifier: string, password: string) =>
-  api<AuthResponse>("/auth/login", { method: "POST", body: { identifier, password } });
+  http.post<{ success: boolean; token: string; user: User }>("/auth/login", { identifier, password });
 
-export const register = (payload: { name: string; email?: string; phone: string; password: string; country?: string; city?: string }) =>
-  api<AuthResponse>("/auth/register", { method: "POST", body: payload });
+export const register = (payload: { name: string; email: string; phone: string; password: string }) =>
+  http.post<{ success: boolean; token: string; user: User }>("/auth/register", payload);
 
-export const fetchMe = () => api<{ success: boolean; user: User }>("/auth/me");
+export const getMe = () => http.get<{ success: boolean; user: User }>("/auth/me");
 
-export const updateProfile = (payload: { name: string; email?: string; phone: string; country?: string; city?: string; address?: string }) =>
-  api<{ success: boolean; message: string; user: User }>("/auth/profile", { method: "PUT", body: payload });
+export const getMyPayments = () => http.get<{ success: boolean; payments: Payment[] }>("/payments");
 
-export const changePassword = (payload: { currentPassword: string; newPassword: string }) =>
-  api<{ success: boolean; message: string }>("/auth/password", { method: "PUT", body: payload });
+export const demoPay = (paymentId: string) =>
+  http.post<{ success: boolean; payment: Payment }>(`/payments/${paymentId}/demo-confirm`);
 
-// ---- Espace transitaire ----
-export const transitaireShipments = (params: { status?: string; q?: string; page?: number; pageSize?: number }, signal?: AbortSignal) =>
-  api<{ success: boolean; shipments: TransitaireShipment[]; pagination: { page: number; pageSize: number; total: number; totalPages: number } }>(
-    "/transitaire/shipments",
-    { query: { status: params.status ?? "", q: params.q ?? "", page: params.page ?? 1, pageSize: params.pageSize ?? 20 }, signal },
-  );
-
-export const transitaireUpdateStatus = (id: string, payload: { status: string; comment?: string; location?: string }) =>
-  api<{ success: boolean; message: string; shipment: TransitaireShipment }>(`/transitaire/shipments/${id}/status`, {
-    method: "PUT",
-    body: payload,
-  });
-
-export const transitaireRates = (signal?: AbortSignal) =>
-  api<{ success: boolean; rates: TransitaireRates }>("/transitaire/rates", { signal });
+export const getMyShipments = () => http.get<{ success: boolean; shipments: Shipment[] }>("/shipments");

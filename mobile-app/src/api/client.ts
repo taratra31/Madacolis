@@ -1,89 +1,66 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { API_BASE_URL } from "../theme";
 
-export const SERVER_URL_KEY = "madacolis.settings.serverUrl";
+export const TOKEN_KEY = "mc_token";
+export const USER_KEY = "mc_user";
 
-let baseOverride: string | null = null;
-
-export const getEffectiveBaseUrl = (): string =>
-  (baseOverride ?? API_BASE_URL).replace(/\/+$/, "");
-
-export const setServerBaseUrl = (url: string | null) => {
-  baseOverride = url?.trim() ? url.trim().replace(/\/+$/, "") : null;
-};
-
-export const loadServerBaseUrl = async (): Promise<string> => {
-  const stored = await AsyncStorage.getItem(SERVER_URL_KEY).catch(() => null);
-  if (stored?.trim()) setServerBaseUrl(stored);
-  return getEffectiveBaseUrl();
-};
+export const API_BASE_URL: string = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:5000/api/v1";
 
 export class ApiError extends Error {
-  status: number;
-  code?: string;
+  readonly code: string;
+  readonly status: number;
 
-  constructor(status: number, message: string, code?: string) {
+  constructor(message: string, code = "UNKNOWN_ERROR", status = 0) {
     super(message);
-    this.status = status;
+    this.name = "ApiError";
     this.code = code;
+    this.status = status;
   }
 }
 
-let authToken: string | null = null;
+let token: string | null = null;
+let onUnauthorized: (() => void) | null = null;
 
-export const setAuthToken = (token: string | null) => {
-  authToken = token;
-};
-
-interface RequestOptions {
-  method?: "GET" | "POST" | "PUT" | "DELETE";
-  query?: Record<string, string | number | boolean | undefined>;
-  body?: unknown;
-  signal?: AbortSignal;
+export function setAuthToken(value: string | null) {
+  token = value;
 }
 
-const trimUndefined = (v: Record<string, unknown>): Record<string, string> => {
-  const out: Record<string, string> = {};
-  for (const [k, val] of Object.entries(v)) {
-    if (val != null && val !== "") out[k] = String(val);
-  }
-  return out;
-};
+export function getAuthToken(): string | null {
+  return token;
+}
 
-export async function api<T>(
-  path: string,
-  { method = "GET", query, body, signal }: RequestOptions = {},
-): Promise<T> {
-  const base = getEffectiveBaseUrl();
-  const qs = query ? "?" + new URLSearchParams(trimUndefined(query as Record<string, unknown>)).toString() : "";
-  const url = `${base}${path}${qs}`;
+export function setUnauthorizedHandler(handler: (() => void) | null) {
+  onUnauthorized = handler;
+}
 
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (authToken) headers.Authorization = `Bearer ${authToken}`;
+export async function loadStoredToken(): Promise<string | null> {
+  token = await AsyncStorage.getItem(TOKEN_KEY);
+  return token;
+}
 
-  let res: Response;
-  try {
-    res = await fetch(url, {
-      method,
-      headers,
-      body: body != null ? JSON.stringify(body) : undefined,
-      signal,
-    });
-  } catch {
-    throw new ApiError(0, "Impossible d'accéder au serveur. Vérifiez votre connexion.");
-  }
+async function request<T>(path: string, options: { method?: string; body?: unknown } = {}): Promise<T> {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    method: options.method ?? "GET",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+  });
+
+  const data = (await res.json().catch(() => ({}))) as { success?: boolean; message?: string; code?: string };
 
   if (!res.ok) {
-    let message = `Erreur serveur (${res.status})`;
-    let code: string | undefined;
-    try {
-      const data = (await res.json()) as { message?: string; error?: string; code?: string };
-      message = data.message ?? data.error ?? message;
-      code = data.code;
-    } catch {
-      // ignore
+    if (res.status === 401) {
+      setAuthToken(null);
+      onUnauthorized?.();
     }
-    throw new ApiError(res.status, message, code);
+    throw new ApiError(data.message ?? "Erreur réseau", data.code, res.status);
   }
-  return (await res.json()) as T;
+  return data as T;
 }
+
+export const http = {
+  get: <T>(path: string) => request<T>(path),
+  post: <T>(path: string, body?: unknown) => request<T>(path, { method: "POST", body }),
+  put: <T>(path: string, body?: unknown) => request<T>(path, { method: "PUT", body }),
+};

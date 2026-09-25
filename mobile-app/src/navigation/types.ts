@@ -1,28 +1,18 @@
-import type { AmazonProduct } from "../types";
+import type { NavigatorScreenParams } from "@react-navigation/native";
+import type { CatalogProduct } from "../types";
 
-export interface QuoteParams {
-  product?: AmazonProduct;
-  prefill?: { quantity?: number };
-}
+export type RootStackParamList = {
+  Tabs: NavigatorScreenParams<TabParamList>;
+  Login: undefined;
+  Register: undefined;
+  ProductDetail: { product: CatalogProduct };
+  Quote: undefined;
+  Tracking: undefined;
+};
 
-export type MainTabParamList = {
+export type TabParamList = {
   Home: undefined;
   Catalog: undefined;
   Cart: undefined;
-  Tracking: { number?: string } | undefined;
   Account: undefined;
-};
-
-export type TransitaireTabParamList = {
-  Colis: undefined;
-  Tarifs: undefined;
-  Compte: undefined;
-};
-
-export type RootStackParamList = {
-  Login: undefined;
-  Main: undefined;
-  Transitaire: undefined;
-  ProductDetail: { product?: AmazonProduct; productId?: string };
-  Quote: QuoteParams | undefined;
 };

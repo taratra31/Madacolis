@@ -64,3 +64,38 @@ export const initiatePayment = asyncHandler(async (req: Request, res: Response) 
     payment: { ...payment, amount: Number(payment.amount) },
   });
 });
+
+/** ⚠️ MODE DÉMO — simule la confirmation « sans argent » d'un paiement par son propriétaire. */
+export const demoConfirmPayment = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user!.id;
+  const paymentId = String(req.params.id);
+
+  const payment = await prisma.payment.findFirst({ where: { id: paymentId, userId } });
+  if (!payment) throw new ApiError(404, "Paiement introuvable", "NOT_FOUND");
+  if (payment.status !== "PENDING") throw new ApiError(409, "Ce paiement n'est plus en attente", "PAYMENT_NOT_PENDING");
+
+  const updated = await prisma.payment.update({
+    where: { id: payment.id },
+    data: {
+      status: "PAID",
+      transactionId: `demo-${payment.paymentReference}`,
+      paidAt: new Date(),
+      metadata: { demo: true, note: "Paiement simulé — aucun débit réel (mode démo)" },
+    },
+  });
+
+  await createAuditLog({
+    userId,
+    action: "PAYMENT.CONFIRMED",
+    entityType: "Payment",
+    entityId: payment.id,
+    newValues: { paymentReference: payment.paymentReference, status: "PAID", demo: true },
+    ipAddress: clientIp(req),
+  });
+
+  res.json({
+    success: true,
+    message: "Paiement confirmé (démo)",
+    payment: { ...updated, amount: Number(updated.amount) },
+  });
+});

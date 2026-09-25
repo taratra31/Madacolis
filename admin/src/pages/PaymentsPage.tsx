@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { RefreshCw } from "lucide-react";
-import { getPayments } from "../api/endpoints";
-import { Badge, Card, EmptyRow, PageHeader, Pagination, TableSkeleton, statusLabel, fmtDate, fmtMoney, btnGhost, inputCls } from "../components/ui";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { CheckCircle2, RefreshCw } from "lucide-react";
+import { confirmPayment, getPayments } from "../api/endpoints";
+import { Badge, Card, EmptyRow, PageHeader, Pagination, TableSkeleton, statusLabel, fmtDate, fmtMoney, btnGhost, btnPrimary, inputCls } from "../components/ui";
 
 const STATUSES = ["ALL", "PAID", "UNPAID", "REFUNDED", "FAILED"];
 const PROVIDERS = ["ALL", "MVOLA", "ORANGE_MONEY", "AIRTEL_MONEY", "TELEMONEY", "CARD", "CASH"];
@@ -11,6 +11,7 @@ export default function PaymentsPage() {
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState("");
   const [provider, setProvider] = useState("");
+  const queryClient = useQueryClient();
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["payments", page, status, provider],
@@ -20,6 +21,11 @@ export default function PaymentsPage() {
       status: status && status !== "ALL" ? status : undefined,
       provider: provider && provider !== "ALL" ? provider : undefined,
     }),
+  });
+
+  const confirm = useMutation({
+    mutationFn: confirmPayment,
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["payments"] }),
   });
 
   return (
@@ -72,7 +78,20 @@ export default function PaymentsPage() {
                       <td className="py-3 pr-3 font-mono text-xs text-slate-600">{p.shipment?.trackingNumber ?? "—"}</td>
                       <td className="py-3 pr-3 font-bold text-slate-900">{fmtMoney(p.amount, p.currency)}</td>
                       <td className="py-3 pr-3"><Badge value={p.provider} /></td>
-                      <td className="py-3 pr-3"><Badge value={p.status} /></td>
+                      <td className="py-3 pr-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge value={p.status} />
+                          {p.status === "PENDING" && (
+                            <button
+                              className={`${btnPrimary} inline-flex items-center gap-1 !px-2 !py-1 text-[11px]`}
+                              onClick={() => confirm.mutate(p.id)}
+                              disabled={confirm.isPending}
+                            >
+                              <CheckCircle2 size={12} /> Confirmer
+                            </button>
+                          )}
+                        </div>
+                      </td>
                       <td className="py-3 text-xs text-slate-500">{fmtDate(p.createdAt)}</td>
                     </tr>
                   ))}

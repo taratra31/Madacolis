@@ -1,6 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, PartyPopper } from "lucide-react";
 import { api } from "@/services/api";
 import { Card, CardBody } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -19,9 +19,15 @@ const PAYMENT_STATUS_STYLES: Record<string, string> = {
 };
 
 export function PaymentsPage() {
+  const queryClient = useQueryClient();
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["my-payments"],
     queryFn: () => api<{ payments: Payment[] }>("/payments"),
+  });
+
+  const demoPay = useMutation({
+    mutationFn: (paymentId: string) => api<{ payment: Payment }>(`/payments/${paymentId}/demo-confirm`, { method: "POST" }),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["my-payments"] }),
   });
 
   const payments = data?.payments ?? [];
@@ -69,14 +75,29 @@ export function PaymentsPage() {
                 <div className="text-right">
                   <p className="text-lg font-bold text-slate-900 dark:text-white">{formatCurrency(payment.amount, payment.currency)}</p>
                   {payment.status === "PENDING" && (
-                    <a
-                      href={whatsappLink(`Bonjour MadaColis, je souhaite régler ma référence de paiement ${payment.paymentReference}.`)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400"
-                    >
-                      <MessageCircle className="size-3.5" /> Régler via WhatsApp
-                    </a>
+                    <div className="mt-1 flex flex-col items-end gap-1.5">
+                      <a
+                        href={whatsappLink(`Bonjour MadaColis, je souhaite régler ma référence de paiement ${payment.paymentReference}.`)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                      >
+                        <MessageCircle className="size-3.5" /> Régler via WhatsApp
+                      </a>
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        onClick={() => demoPay.mutate(payment.id)}
+                        disabled={demoPay.isPending}
+                        className="inline-flex items-center gap-1.5"
+                      >
+                        <PartyPopper className="size-3.5" />
+                        {demoPay.isPending ? "Confirmation…" : "Payer (démo)"}
+                      </Button>
+                      <p className="max-w-[14rem] text-right text-[11px] text-slate-400">
+                        Sans argent réel — simulation pour tester le circuit.
+                      </p>
+                    </div>
                   )}
                 </div>
               </div>

@@ -281,6 +281,35 @@ const listPayments = asyncHandler(async (req: Request, res: Response) => {
   res.json({ success: true, payments, pagination: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) } });
 });
 
+/** Confirme manuellement un paiement PENDING (réception MVola/OM/espèces réelle). */
+const confirmPayment = asyncHandler(async (req: Request, res: Response) => {
+  const paymentId = str(req.params.id);
+  const payment = await prisma.payment.findUnique({ where: { id: paymentId } });
+  if (!payment) throw new ApiError(404, "Paiement introuvable", "NOT_FOUND");
+  if (payment.status !== "PENDING") throw new ApiError(409, "Ce paiement n'est plus en attente", "PAYMENT_NOT_PENDING");
+
+  const updated = await prisma.payment.update({
+    where: { id: payment.id },
+    data: {
+      status: "PAID",
+      transactionId: payment.transactionId ?? `manual-${payment.paymentReference}`,
+      paidAt: new Date(),
+      metadata: { manualConfirm: true },
+    },
+  });
+
+  await createAuditLog({
+    userId: req.user!.id,
+    action: "PAYMENT.CONFIRMED",
+    entityType: "Payment",
+    entityId: payment.id,
+    newValues: { paymentReference: payment.paymentReference, status: "PAID", manual: true },
+    ipAddress: clientIp(req),
+  });
+
+  res.json({ success: true, message: "Paiement confirmé", payment: { ...updated, amount: Number(updated.amount) } });
+});
+
 const listPricingRules = asyncHandler(async (_req: Request, res: Response) => {
   const rules = await prisma.pricingRule.findMany({ orderBy: [{ originCountry: "asc" }, { serviceType: "asc" }] });
   res.json({ success: true, rules });
@@ -780,6 +809,7 @@ export {
   updateShipmentStatus,
   assignShipmentCarrier,
   listPayments,
+  confirmPayment,
   listPricingRules,
   createPricingRule,
   updatePricingRule,

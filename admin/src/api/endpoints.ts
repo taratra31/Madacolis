@@ -88,6 +88,11 @@ export const getPayments = async (params: { page?: number; pageSize?: number; st
   return data as { success: boolean; payments: Payment[]; pagination: Pagination };
 };
 
+export const confirmPayment = async (id: string) => {
+  const { data } = await api.put(`/admin/payments/${id}/confirm`);
+  return data as { success: boolean; payment: Payment };
+};
+
 // ─── Pricing Rules ───
 export const getPricingRules = async () => {
   const { data } = await api.get("/admin/pricing-rules");

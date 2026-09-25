@@ -8,6 +8,7 @@ import {
   updateShipmentStatus,
   assignShipmentCarrier,
   listPayments,
+  confirmPayment,
   listPricingRules,
   createPricingRule,
   updatePricingRule,
@@ -46,6 +47,7 @@ router.post("/shipments", authorize("ADMIN"), validate(createShipmentSchema), cr
 router.put("/shipments/:id/status", authorize("ADMIN"), validate(updateShipmentStatusSchema), updateShipmentStatus);
 router.put("/shipments/:id/carrier", validate(updateUserStatusSchema.pick({ carrierId: true })), assignShipmentCarrier);
 router.get("/payments", listPayments);
+router.put("/payments/:id/confirm", authorize("ADMIN"), confirmPayment);
 router.get("/transitaires", authorize("ADMIN"), listTransitaires);
 router.get("/commissions", authorize("ADMIN"), listCommissions);
 router.get("/treasury", authorize("ADMIN"), listTreasury);

@@ -10,8 +10,14 @@ import { geocodeQuerySchema, quoteSchema, analyzeLinkSchema, productQuoteSchema,
 import { isAmazonPaapiConfigured, searchAmazonProducts, getAmazonProduct } from "../services/amazon-paapi.service.js";
 import { searchCuratedAmazon, getCuratedProductById, getCategoryTree } from "../services/marketplace-curated.service.js";
 import { listTransitaires } from "../services/transitaire.service.js";
+import { getHomePageData } from "../services/home.service.js";
 
 const router = Router();
+
+router.get("/home", asyncHandler(async (_req, res) => {
+  const data = await getHomePageData();
+  res.json({ success: true, ...data });
+}));
 
 router.get("/services", asyncHandler(async (_req, res) => {
   const services = await listServices();

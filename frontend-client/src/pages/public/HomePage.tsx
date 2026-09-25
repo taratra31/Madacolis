@@ -5,6 +5,7 @@ import {
   ArrowRight,
   BadgeCheck,
   ClipboardList,
+  Globe2,
   MessageCircle,
   Package,
   PackageCheck,
@@ -20,6 +21,7 @@ import {
   Smartphone,
   Store,
   Truck,
+  Users,
   Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -28,8 +30,54 @@ import { useLocale } from "@/contexts/locale";
 import { CostCalculator } from "@/components/tracking/CostCalculator";
 import { ProductGrid } from "@/components/catalog/ProductCard";
 import { api } from "@/services/api";
-import { SERVICE_DESCRIPTIONS, whatsappLink } from "@/utils";
+import { whatsappLink } from "@/utils";
 import type { AmazonProduct, CatalogProductType, ServiceType } from "@/types";
+
+interface HomeTariff {
+  id: string;
+  name: string;
+  originCountry: string;
+  destinationCountry: string;
+  serviceType: ServiceType;
+  basePrice: number;
+  pricePerKg: number;
+  pricePerKm: number | null;
+  minimumPrice: number;
+  currency: string;
+}
+
+interface HomeStats {
+  users: number;
+  shipments: number;
+  payments: number;
+  pricingRules: number;
+  pending: number;
+  inTransit: number;
+  delivered: number;
+  revenuePaid: number | null;
+}
+
+interface HomeCity {
+  city: string;
+  country: string;
+}
+
+interface HomeRoute {
+  originCountry: string;
+  originCity: string;
+  destinationCountry: string;
+  destinationCity: string;
+  count: number;
+}
+
+interface HomeData {
+  services: HomeTariff[];
+  stats: HomeStats;
+  shipmentsByService: Array<{ serviceType: ServiceType; count: number }>;
+  shipmentsByStatus: Array<{ status: string; count: number }>;
+  topRoutes: HomeRoute[];
+  cities: HomeCity[];
+}
 
 function toCatalogProduct(p: AmazonProduct): CatalogProductType {
   const source = p.asin.split("-")[0];
@@ -147,8 +195,35 @@ export function HomePage() {
     queryFn: () => api<{ products: AmazonProduct[] }>("/pricing/marketplace/products?limit=8&skip=0"),
   });
 
+  const { data: homeData } = useQuery({
+    queryKey: ["home-data"],
+    queryFn: () => api<HomeData>("/pricing/home"),
+  });
+
   const featured = (data?.products ?? []).filter((p) => p.priceEUR != null).slice(0, 4).map(toCatalogProduct);
   const newcomers = (data?.products ?? []).filter((p) => p.priceEUR != null).slice(4, 8).map(toCatalogProduct);
+
+  const tariffFor = (service: ServiceType) =>
+    (homeData?.services ?? []).find(
+      (r) => r.serviceType === service && r.originCountry === "France" && r.destinationCountry === "Madagascar",
+    ) ?? (homeData?.services ?? []).find((r) => r.serviceType === service);
+
+  const stats = homeData?.stats;
+  const cities = homeData?.cities ?? [];
+  const routes = homeData?.topRoutes ?? [];
+
+  const formatPrice = (n: number, currency: string) =>
+    new Intl.NumberFormat("fr-FR", { style: "currency", currency }).format(n);
+
+  const statItems = stats
+    ? [
+        { icon: Package, label: t("stats.shipments"), value: stats.shipments },
+        { icon: PackageCheck, label: t("stats.delivered"), value: stats.delivered },
+        { icon: Plane, label: t("stats.inTransit"), value: stats.inTransit },
+        { icon: Globe2, label: t("stats.cities"), value: cities.length },
+        { icon: Users, label: t("stats.clients"), value: stats.users },
+      ]
+    : [];
 
   const submitSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -307,23 +382,80 @@ export function HomePage() {
             </Link>
           </div>
           <div className="mt-8 grid gap-6 md:grid-cols-3">
-            {SERVICES.map((s, i) => (
-              <Reveal key={s} delay={i * 90} className="card-hover rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-                <div className="flex size-11 items-center justify-center rounded-xl bg-brand-900 text-blue-400">
-                  <Plane className="size-5" />
-                </div>
-                <h3 className="mt-4 text-lg font-semibold capitalize text-slate-900 dark:text-white">
-                  Service {SERVICE_DESCRIPTIONS[s].split(".")[0].toLowerCase()}
-                </h3>
-                <p className="mt-2 text-sm leading-relaxed text-slate-500 dark:text-slate-400">{SERVICE_DESCRIPTIONS[s]}</p>
-                <Link to="/tarifs" className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400">
-                  {t("common.seePricing")} <ArrowRight className="size-4" />
-                </Link>
-              </Reveal>
-            ))}
+            {SERVICES.map((s, i) => {
+              const tarrif = tariffFor(s);
+              return (
+                <Reveal key={s} delay={i * 90} className="card-hover flex flex-col rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
+                  <div className="flex size-11 items-center justify-center rounded-xl bg-brand-900 text-blue-400">
+                    <Plane className="size-5" />
+                  </div>
+                  <h3 className="mt-4 text-lg font-semibold capitalize text-slate-900 dark:text-white">
+                    {tarrif?.name ?? s.toLowerCase()}
+                  </h3>
+                  {tarrif && (
+                    <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                      {tarrif.originCountry} → {tarrif.destinationCountry}
+                    </p>
+                  )}
+                  <div className="mt-4 flex items-end gap-1.5">
+                    <span className="text-2xl font-bold text-slate-900 dark:text-white">
+                      {tarrif ? formatPrice(tarrif.pricePerKg, tarrif.currency) : "—"}
+                    </span>
+                    <span className="pb-1 text-xs text-slate-500 dark:text-slate-400">/ kg</span>
+                  </div>
+                  {tarrif && (
+                    <p className="mt-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                      {t("common.estimated")} · base{" "}
+                      {formatPrice(tarrif.basePrice, tarrif.currency)} · min{" "}
+                      {formatPrice(tarrif.minimumPrice, tarrif.currency)}
+                    </p>
+                  )}
+                  <Link to="/tarifs" className="mt-auto inline-flex items-center gap-1 pt-5 text-sm font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400">
+                    {t("common.seePricing")} <ArrowRight className="size-4" />
+                  </Link>
+                </Reveal>
+              );
+            })}
           </div>
         </div>
       </section>
+
+      {/* Statistiques en temps réel depuis la DB */}
+      {stats && (
+        <section className="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 text-white dark:from-blue-800 dark:via-blue-900 dark:to-indigo-950">
+          <div className="container-page py-14 lg:py-16">
+            <Reveal className="mx-auto max-w-2xl text-center">
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold tracking-wide text-blue-50">
+                <Globe2 className="size-3.5" /> {t("stats.eyebrow")}
+              </span>
+              <h2 className="mt-4 text-3xl font-bold tracking-tight text-white">{t("stats.title")}</h2>
+              <p className="mt-3 text-blue-100">{t("stats.subtitle")}</p>
+            </Reveal>
+            <div className="mt-10 grid grid-cols-2 gap-4 lg:grid-cols-5">
+              {statItems.map((item, i) => (
+                <Reveal key={item.label} delay={i * 60} className="rounded-2xl border border-white/10 bg-white/10 p-5 text-center backdrop-blur">
+                  <item.icon className="mx-auto size-6 text-blue-200" />
+                  <p className="mt-3 text-3xl font-bold text-white">{item.value}</p>
+                  <p className="mt-1 text-xs font-medium tracking-wide text-blue-100">{item.label}</p>
+                </Reveal>
+              ))}
+            </div>
+            {routes.length > 0 && (
+              <Reveal className="mx-auto mt-10 max-w-3xl">
+                <p className="text-center text-xs font-semibold uppercase tracking-widest text-blue-200">{t("stats.routes")}</p>
+                <div className="mt-4 flex flex-wrap justify-center gap-2.5">
+                  {routes.map((r) => (
+                    <span key={`${r.originCity}-${r.destinationCity}`} className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-xs font-medium text-blue-50">
+                      {r.originCity} <Plane className="size-3 text-blue-200" /> {r.destinationCity}
+                      <span className="rounded-full bg-white/20 px-1.5 py-0.5 text-[10px] font-bold">{r.count}</span>
+                    </span>
+                  ))}
+                </div>
+              </Reveal>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Bandeau lien produit */}
       <section className="container-page py-14 lg:py-20">

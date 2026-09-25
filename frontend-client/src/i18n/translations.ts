@@ -38,6 +38,7 @@ export const translations: Record<Lang, Dict> = {
       viewCart: "Voir le panier",
       loading: "Chargement…",
       estimated: "estimé · non contractuel",
+      retry: "Réessayer",
     },
     hero: {
       badge: "Boutiques en ligne → Madagascar",
@@ -124,6 +125,12 @@ export const translations: Record<Lang, Dict> = {
       button: "Télécharger l'application (APK)",
       platform: "Android · Version 1.0.0",
       note: "Gratuite · Données chiffrées · Compatible Android 8+",
+      downloading: "Téléchargement",
+      done: "Téléchargé",
+      success: "APK téléchargé — installez-le sur votre Android.",
+      redownload: "Retélécharger",
+      error: "Échec du téléchargement. Réessayez.",
+      keepWindow: "Ne fermez pas cette page pendant le téléchargement.",
     },
     pages: {
       catalog: {
@@ -218,6 +225,7 @@ export const translations: Record<Lang, Dict> = {
       viewCart: "View cart",
       loading: "Loading…",
       estimated: "estimate · non-binding",
+      retry: "Retry",
     },
     hero: {
       badge: "Online shops → Madagascar",
@@ -304,6 +312,12 @@ export const translations: Record<Lang, Dict> = {
       button: "Download the app (APK)",
       platform: "Android · Version 1.0.0",
       note: "Free · Encrypted data · Android 8+ compatible",
+      downloading: "Downloading",
+      done: "Downloaded",
+      success: "APK downloaded — install it on your Android.",
+      redownload: "Download again",
+      error: "Download failed. Please retry.",
+      keepWindow: "Keep this page open while downloading.",
     },
     pages: {
       catalog: {

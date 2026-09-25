@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Reveal } from "@/components/ui/Reveal";
+import { ApkDownloadButton } from "@/components/ui/ApkDownload";
 import { useLocale } from "@/contexts/locale";
 import { CostCalculator } from "@/components/tracking/CostCalculator";
 import { ProductGrid } from "@/components/catalog/ProductCard";
@@ -564,12 +565,7 @@ export function HomePage() {
                     </li>
                   ))}
                 </ul>
-                <a href="/apk/madacolis.apk" download className="mt-6 inline-block">
-                  <Button size="lg" variant="primary" className="btn-shine">
-                    <Smartphone className="size-4" />
-                    {t("download.button")}
-                  </Button>
-                </a>
+                <ApkDownloadButton />
                 <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">{t("download.note")}</p>
               </div>
 

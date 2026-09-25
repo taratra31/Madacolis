@@ -46,7 +46,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const clear = useCallback(() => setItems([]), []);
 
   const value = useMemo(() => {
-    const total = items.reduce((sum, i) => sum + i.product.priceEUR * i.quantity, 0);
+    const total = items.reduce((sum, i) => sum + (i.product.priceEUR ?? 0) * i.quantity, 0);
     const count = items.reduce((sum, i) => sum + i.quantity, 0);
     return { items, addItem, removeItem, updateQuantity, clear, total, count };
   }, [items, addItem, removeItem, updateQuantity, clear]);

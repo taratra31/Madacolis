@@ -1,6 +1,5 @@
 import { http } from "./client";
 import type {
-  CatalogProduct,
   HomeData,
   Payment,
   QuoteResult,
@@ -12,8 +11,35 @@ import type {
 
 export const getHomeData = () => http.get<{ success: boolean } & HomeData>("/pricing/home");
 
+interface ApiProduct {
+  asin: string;
+  title: string;
+  imageUrl?: string;
+  priceEUR?: number | null;
+  category?: string;
+  brand?: string;
+  weightKg?: number;
+  lengthCm?: number;
+  widthCm?: number;
+  heightCm?: number;
+}
+
 export const getProducts = (limit = 10, skip = 0) =>
-  http.get<{ success: boolean; products: CatalogProduct[] }>(`/pricing/marketplace/products?limit=${limit}&skip=${skip}`);
+  http.get<{ success: boolean; products: ApiProduct[] }>(`/pricing/marketplace/products?limit=${limit}&skip=${skip}`).then((res) => ({
+    ...res,
+    products: res.products.map((p) => ({
+      id: p.asin,
+      name: p.title,
+      brand: p.brand ?? "",
+      category: p.category ?? "Divers",
+      priceEUR: p.priceEUR ?? null,
+      image: p.imageUrl ?? "",
+      weightKg: p.weightKg ?? 0.5,
+      lengthCm: p.lengthCm,
+      widthCm: p.widthCm,
+      heightCm: p.heightCm,
+    })),
+  }));
 
 export const quoteShipment = (payload: {
   originCountry: string;

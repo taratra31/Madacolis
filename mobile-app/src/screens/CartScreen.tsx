@@ -7,6 +7,7 @@ import { colors, radius, spacing } from "../theme";
 import { useCart } from "../context/CartContext";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/types";
+import { priceOf } from "../utils/format";
 
 export function CartScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -30,10 +31,10 @@ export function CartScreen() {
                     <Text numberOfLines={1} style={styles.name}>
                       {item.product.name}
                     </Text>
-                    <Text style={styles.price}>
-                      {(item.product.priceEUR * item.quantity).toFixed(2)} €
-                      <Text style={styles.unit}> · {item.product.priceEUR.toFixed(2)} €/unité</Text>
-                    </Text>
+<Text style={styles.price}>
+  {(priceOf(item.product) * item.quantity).toFixed(2)} €
+  <Text style={styles.unit}> · {priceOf(item.product).toFixed(2)} €/unité</Text>
+</Text>
                   </View>
                   <View style={styles.qty}>
                     <Pressable style={styles.qtyBtn} onPress={() => updateQuantity(item.product.id, item.quantity - 1)}>

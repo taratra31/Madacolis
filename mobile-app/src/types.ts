@@ -76,9 +76,12 @@ export interface CatalogProduct {
   name: string;
   brand: string;
   category: string;
-  priceEUR: number;
+  priceEUR: number | null;
   image: string;
   weightKg: number;
+  lengthCm?: number;
+  widthCm?: number;
+  heightCm?: number;
   description?: string;
 }
 

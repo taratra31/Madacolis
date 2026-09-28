@@ -209,6 +209,9 @@ const RAW_CATEGORY_FALLBACK: Record<string, [string, string]> = {
   "ef-petit-dejeuner": ["Épicerie & Alimentation", "Petit-déjeuner & Céréales"],
   "ef-snacks": ["Épicerie & Alimentation", "Snacks & Confiserie"],
   "ef-conserves": ["Épicerie & Alimentation", "Conserves & Épicerie"],
+  "sports-accessories": ["Sport & Loisirs", "Accessoires sport"],
+  bicycle: ["Sport & Loisirs", "Vélo & Outdoor"],
+  accessories: ["Mode", "Accessoires & Lunettes"],
 };
 
 export interface CategoryNode {
@@ -476,6 +479,74 @@ const CURATED_BESTSELLERS: CuratedBestseller[] = [
   { title: "Aspirateur Robot DEEBOT — Ecovacs", priceUsd: 329, rawCategory: "kitchen", img: "File:Robot Vacuum 2016 (31606445890).jpg", weightKg: 3.2, lengthCm: 35, widthCm: 35, heightCm: 10 },
   { title: "Aspirateur Balai Sans Fil 8000Pa", priceUsd: 99, rawCategory: "kitchen", img: "File:Aspirapolvere Rowenta.jpg", weightKg: 2.8, lengthCm: 25, widthCm: 22, heightCm: 110 },
   { title: "Aspirateur Eau et Poussiere — Karcher", priceUsd: 189, rawCategory: "kitchen", img: "File:Kärcher-Hochdruckreiniger.jpg", weightKg: 7.4, lengthCm: 34, widthCm: 30, heightCm: 52 },
+  // ===== Smartphones & tablettes =====
+  { title: "iPhone 14 Pro Smartphone 256Go", priceUsd: 1099, rawCategory: "smartphones", img: "File:IPhone 14 Pro.jpg", weightKg: 0.24, lengthCm: 15, widthCm: 7, heightCm: 1 },
+  { title: "iPhone 13 Smartphone 128Go", priceUsd: 699, rawCategory: "smartphones", img: "File:IPhone 13.jpg", weightKg: 0.2, lengthCm: 15, widthCm: 7, heightCm: 1 },
+  { title: "Tablette Samsung Galaxy Tab S8 11\"", priceUsd: 699, rawCategory: "tablets", img: "File:Samsung Galaxy Tab S8.jpg", weightKg: 0.5, lengthCm: 25, widthCm: 17, heightCm: 1 },
+  // ===== Électroménager =====
+  { title: "Lave-Linge Hublot 9Kg 1400Trs/min", priceUsd: 549, rawCategory: "kitchen", img: "File:Washing machine open.jpg", weightKg: 68, lengthCm: 60, widthCm: 60, heightCm: 85 },
+  { title: "Réfrigérateur Combiné 270L No Frost", priceUsd: 649, rawCategory: "kitchen", img: "File:Refrigerator.jpg", weightKg: 64, lengthCm: 60, widthCm: 65, heightCm: 178 },
+  { title: "Four Micro-Ondes 30L Grill — Samsung", priceUsd: 129, rawCategory: "kitchen", img: "File:Microwave oven.jpg", weightKg: 14, lengthCm: 51, widthCm: 40, heightCm: 31 },
+  { title: "Machine à Café Espresso 15 Bars — DeLonghi", priceUsd: 259, rawCategory: "kitchen", img: "File:Espresso machine.jpg", weightKg: 8.5, lengthCm: 36, widthCm: 26, heightCm: 34 },
+  { title: "Cafetière Expresso Moka Pot 3 Tasses", priceUsd: 29, rawCategory: "kitchen", img: "File:Moka pot.jpg", weightKg: 0.4, lengthCm: 15, widthCm: 10, heightCm: 20 },
+  { title: "Machine à Café Filtre Programmable 1.4L", priceUsd: 45, rawCategory: "kitchen", img: "File:Coffee maker.jpg", weightKg: 2.2, lengthCm: 24, widthCm: 18, heightCm: 34 },
+  // ===== Audio & accessoires =====
+  { title: "AirPods Pro Écouteurs Sans Fil — Apple", priceUsd: 249, rawCategory: "audio", img: "File:AirPods Pro.jpg", weightKg: 0.2, lengthCm: 7, widthCm: 7, heightCm: 3 },
+  { title: "Casque Audio Bluetooth ANC 40h", priceUsd: 99, rawCategory: "audio", img: "File:Headphones.jpg", weightKg: 0.3, lengthCm: 20, widthCm: 19, heightCm: 8 },
+  { title: "Écouteurs Intra Sans Fil 30h — Bose", priceUsd: 179, rawCategory: "audio", img: "File:Earbuds.jpg", weightKg: 0.1, lengthCm: 6, widthCm: 6, heightCm: 3 },
+  { title: "Microphone USB Clavier-XLR Streaming", priceUsd: 79, rawCategory: "audio", img: "File:Microphone.jpg", weightKg: 0.8, lengthCm: 18, widthCm: 12, heightCm: 12 },
+  // ===== Gaming & informatique =====
+  { title: "PlayStation 5 Console 825Go", priceUsd: 499, rawCategory: "audio", img: "File:PlayStation 5.jpg", weightKg: 4.5, lengthCm: 39, widthCm: 26, heightCm: 10 },
+  { title: "Nintendo Switch Console + Jeu", priceUsd: 299, rawCategory: "audio", img: "File:Nintendo Switch.jpg", weightKg: 0.4, lengthCm: 24, widthCm: 10, heightCm: 1 },
+  { title: "PC Gamer RTX 4060 16Go RAM", priceUsd: 1299, rawCategory: "audio", img: "File:Gaming PC.jpg", weightKg: 8, lengthCm: 48, widthCm: 20, heightCm: 48 },
+  { title: "Écran PC 27\" QHD 144Hz", priceUsd: 249, rawCategory: "audio", img: "File:Monitor.jpg", weightKg: 5, lengthCm: 62, widthCm: 18, heightCm: 43 },
+  { title: "Clavier Mécanique RGB + Souris", priceUsd: 59, rawCategory: "audio", img: "File:Keyboard.jpg", weightKg: 1.2, lengthCm: 44, widthCm: 13, heightCm: 4 },
+  { title: "Souris Sans Fil Bluetooth 4000dpi", priceUsd: 25, rawCategory: "audio", img: "File:Mouse.jpg", weightKg: 0.1, lengthCm: 12, widthCm: 6, heightCm: 4 },
+  { title: "Imprimante Multifonction Jet d'Encre — Canon", priceUsd: 79, rawCategory: "audio", img: "File:Printer.jpg", weightKg: 5.6, lengthCm: 42, widthCm: 30, heightCm: 17 },
+  { title: "Clé USB 128Go USB 3.0", priceUsd: 19, rawCategory: "audio", img: "File:USB flash drive.jpg", weightKg: 0.02, lengthCm: 6, widthCm: 2, heightCm: 1 },
+  // ===== Photo & maison connectée =====
+  { title: "Appareil Photo Hybride Canon EOS R", priceUsd: 1799, rawCategory: "audio", img: "File:Canon EOS R.jpg", weightKg: 1.2, lengthCm: 14, widthCm: 10, heightCm: 7 },
+  { title: "Liseuse Kindle 16Go Écran 6\"", priceUsd: 99, rawCategory: "audio", img: "File:Kindle.jpg", weightKg: 0.3, lengthCm: 16, widthCm: 11, heightCm: 1 },
+  // ===== Mode homme & femme =====
+  { title: "Baskets Air Force 1 Blanche — Nike", priceUsd: 119, rawCategory: "mens-shoes", img: "File:Nike Air Force 1.jpg", weightKg: 0.8, lengthCm: 32, widthCm: 12, heightCm: 12 },
+  { title: "Baskets New Balance 574 Grises", priceUsd: 89, rawCategory: "mens-shoes", img: "File:New Balance 574.jpg", weightKg: 0.7, lengthCm: 32, widthCm: 12, heightCm: 12 },
+  { title: "Baskets de Running Trail — Salomon", priceUsd: 129, rawCategory: "mens-shoes", img: "File:Running shoes.jpg", weightKg: 0.6, lengthCm: 32, widthCm: 11, heightCm: 11 },
+  { title: "Baskets Sneakers Mode Urbain", priceUsd: 59, rawCategory: "snickers", img: "File:Sneakers.jpg", weightKg: 0.7, lengthCm: 32, widthCm: 12, heightCm: 11 },
+  { title: "Chemise Oxford Coton Homme", priceUsd: 39, rawCategory: "mens-shirts", img: "File:Shirt.jpg", weightKg: 0.2, lengthCm: 30, widthCm: 20, heightCm: 2 },
+  { title: "T-Shirt Coton Uni — Lot de 3", priceUsd: 29, rawCategory: "tops", img: "File:T-shirt.jpg", weightKg: 0.3, lengthCm: 25, widthCm: 20, heightCm: 2 },
+  { title: "Robe Longue FLou Été Femme", priceUsd: 45, rawCategory: "womens-dresses", img: "File:Dress.jpg", weightKg: 0.3, lengthCm: 40, widthCm: 20, heightCm: 2 },
+  { title: "Jean Slim 5 Poches Homme", priceUsd: 49, rawCategory: "mens-shirts", img: "File:Jeans.jpg", weightKg: 0.5, lengthCm: 40, widthCm: 30, heightCm: 2 },
+  { title: "Sweat Hoodie Polaire Molletonné", priceUsd: 39, rawCategory: "tops", img: "File:Hoodie.jpg", weightKg: 0.5, lengthCm: 35, widthCm: 30, heightCm: 2 },
+  // ===== Accessoires mode =====
+  { title: "Lunettes de Soleil Aviator Métal", priceUsd: 49, rawCategory: "accessories", img: "File:Aviator sunglasses.jpg", weightKg: 0.05, lengthCm: 14, widthCm: 5, heightCm: 4 },
+  { title: "Lunettes de Soleil Oakley Sport", priceUsd: 129, rawCategory: "accessories", img: "File:Oakley sunglasses.jpg", weightKg: 0.05, lengthCm: 14, widthCm: 5, heightCm: 4 },
+  { title: "Sac à Dos Urbain 18L — Anti-vol", priceUsd: 59, rawCategory: "womens-bags", img: "File:Backpack.jpg", weightKg: 0.6, lengthCm: 43, widthCm: 30, heightCm: 12 },
+  { title: "Sac à Main Cuir Femme", priceUsd: 79, rawCategory: "womens-bags", img: "File:Leather bag.jpg", weightKg: 0.7, lengthCm: 30, widthCm: 12, heightCm: 22 },
+  { title: "Valise Cabine Rigide 55cm — Luggage", priceUsd: 89, rawCategory: "womens-bags", img: "File:Luggage.jpg", weightKg: 2.6, lengthCm: 55, widthCm: 38, heightCm: 23 },
+  // ===== Montres =====
+  { title: "Apple Watch Série 7 GPS 45mm", priceUsd: 399, rawCategory: "mens-watches", img: "File:Apple Watch.jpg", weightKg: 0.1, lengthCm: 5, widthCm: 5, heightCm: 5 },
+  { title: "Montre Connectée Fitness GPS", priceUsd: 149, rawCategory: "mens-watches", img: "File:Smartwatch.jpg", weightKg: 0.1, lengthCm: 5, widthCm: 5, heightCm: 5 },
+  { title: "Galaxy Watch 5 GPS 40mm — Samsung", priceUsd: 279, rawCategory: "mens-watches", img: "File:Galaxy Watch.jpg", weightKg: 0.1, lengthCm: 5, widthCm: 5, heightCm: 5 },
+  { title: "Montre Homme Classique Acier — Tissot", priceUsd: 449, rawCategory: "mens-watches", img: "File:Tissot watch.jpg", weightKg: 0.15, lengthCm: 4, widthCm: 4, heightCm: 1 },
+  { title: "Montre Femme Élégante Bracelet", priceUsd: 119, rawCategory: "womens-watches", img: "File:Wrist watch.jpg", weightKg: 0.1, lengthCm: 3, widthCm: 3, heightCm: 1 },
+  { title: "Montre G-Shock Résistante — Casio", priceUsd: 149, rawCategory: "mens-watches", img: "File:Casio G-Shock.jpg", weightKg: 0.09, lengthCm: 5, widthCm: 5, heightCm: 2 },
+  // ===== Sport & loisirs =====
+  { title: "Ballon de Basketball Taille 7", priceUsd: 25, rawCategory: "sports-accessories", img: "File:Basketball.jpg", weightKg: 0.6, lengthCm: 25, widthCm: 25, heightCm: 25 },
+  { title: "Tapis de Yoga Antidérapant 6mm", priceUsd: 29, rawCategory: "sports-accessories", img: "File:Yoga mat.jpg", weightKg: 1.1, lengthCm: 183, widthCm: 61, heightCm: 1 },
+  { title: "Rameur Plieant Home Gym", priceUsd: 249, rawCategory: "sports-accessories", img: "File:Rowing machine.jpg", weightKg: 26, lengthCm: 190, widthCm: 55, heightCm: 50 },
+  { title: "VTT Trekking 26 Pouces 21 Vitesses", priceUsd: 289, rawCategory: "bicycle", img: "File:Bicycle.jpg", weightKg: 14, lengthCm: 165, widthCm: 60, heightCm: 95 },
+  { title: "Canne à Pêche Télescopique 3.6m", priceUsd: 29, rawCategory: "sports-accessories", img: "File:Fishing rod.jpg", weightKg: 0.4, lengthCm: 30, widthCm: 8, heightCm: 8 },
+  { title: "Tente 2 Places Camping Imperméable", priceUsd: 79, rawCategory: "sports-accessories", img: "File:Tent.jpg", weightKg: 2.8, lengthCm: 50, widthCm: 15, heightCm: 15 },
+  // ===== Maison =====
+  { title: "Lampe de Bureau LED Réglable 12W", priceUsd: 35, rawCategory: "home-decoration", img: "File:Desk lamp.jpg", weightKg: 1.2, lengthCm: 40, widthCm: 15, heightCm: 45 },
+  { title: "Ventilateur Plafond 52\" Silencieux", priceUsd: 129, rawCategory: "home-decoration", img: "File:Ceiling fan.jpg", weightKg: 7, lengthCm: 60, widthCm: 60, heightCm: 25 },
+  { title: "Climatiseur Split Inverter 9000 BTU", priceUsd: 599, rawCategory: "home-decoration", img: "File:Air conditioner.jpg", weightKg: 38, lengthCm: 80, widthCm: 30, heightCm: 30 },
+  { title: "Aspirateur Robot Aspirant + Laveur", priceUsd: 399, rawCategory: "kitchen", img: "File:Roomba.jpg", weightKg: 3.4, lengthCm: 35, widthCm: 35, heightCm: 10 },
+  // ===== Beauté =====
+  { title: "Eau de Parfum Pour Femme 50ml", priceUsd: 69, rawCategory: "fragrances", img: "File:Perfume bottle.jpg", weightKg: 0.25, lengthCm: 5, widthCm: 5, heightCm: 14 },
+  { title: "Rouge à Lèvres Mat Longue Tenue", priceUsd: 19, rawCategory: "beauty", img: "File:Lipstick.jpg", weightKg: 0.1, lengthCm: 3, widthCm: 3, heightCm: 8 },
+  { title: "Vernis à Ongles — Coffret 12 Teintes", priceUsd: 25, rawCategory: "beauty", img: "File:Nail polish.jpg", weightKg: 0.6, lengthCm: 20, widthCm: 15, heightCm: 5 },
+  { title: "Correcteur Visage Anti-Cernes", priceUsd: 15, rawCategory: "beauty", img: "File:Concealer.jpg", weightKg: 0.1, lengthCm: 3, widthCm: 3, heightCm: 9 },
 ];
 
 const commonsImg = (file: string): string => `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(file)}?width=500`;

@@ -25,7 +25,26 @@ interface ApiProduct {
 }
 
 export const getProducts = (limit = 10, skip = 0) =>
-  http.get<{ success: boolean; products: ApiProduct[] }>(`/pricing/marketplace/products?limit=${limit}&skip=${skip}`).then((res) => ({
+  http.get<{ success: boolean; products: ApiProduct[]; total?: number }>(`/pricing/marketplace/products?limit=${limit}&skip=${skip}`).then((res) => ({
+    ...res,
+    products: res.products.map((p) => ({
+      id: p.asin,
+      name: p.title,
+      brand: p.brand ?? "",
+      category: p.category ?? "Divers",
+      priceEUR: p.priceEUR ?? null,
+      image: p.imageUrl ?? "",
+      weightKg: p.weightKg ?? 0.5,
+      lengthCm: p.lengthCm,
+      widthCm: p.widthCm,
+      heightCm: p.heightCm,
+    })),
+  }));
+
+export const searchProducts = (query: string, limit = 50) =>
+  http.get<{ success: boolean; products: ApiProduct[]; total?: number }>(
+    `/pricing/marketplace/amazon/search?q=${encodeURIComponent(query)}&limit=${limit}`,
+  ).then((res) => ({
     ...res,
     products: res.products.map((p) => ({
       id: p.asin,

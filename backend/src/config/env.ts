@@ -14,6 +14,8 @@ const envSchema = z.object({
   AMAZON_PARTNER_TAG: z.string().optional(),
   AMAZON_HOST: z.string().default("webservices.amazon.fr"),
   AMAZON_REGION: z.string().default("eu-west-1"),
+  /** Best Buy API (clé gratuite à créer sur developer.bestbuy.com) — active le catalogue Best Buy si fournie. */
+  BESTBUY_API_KEY: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

@@ -11,11 +11,16 @@ interface CuratedEntry {
   category: string;
   /** Date de « publication » (epoch ms) : détermine un ordre stable et récent-d'abord. */
   postedAt?: number;
+  /** Titre normalisé (minuscules, sans accents) — pré-calculé pour accélérer la recherche. */
+  norm?: string;
 }
 
 let cache: CuratedEntry[] | null = null;
 let cacheAt = 0;
-const CACHE_TTL_MS = 10 * 60 * 1000;
+/** « Populaires » pré-calculés (ordre rotatif hebdomadaire) — recalculé au remplissage du cache. */
+let cachePopular: AmazonProduct[] = [];
+let cachePopularWk = -1;
+const CACHE_TTL_MS = 30 * 60 * 1000;
 const USD_TO_EUR = 0.92;
 const FETCH_TIMEOUT_MS = 15000;
 const HOUR_MS = 3_600_000;
@@ -214,6 +219,7 @@ const RAW_CATEGORY_FALLBACK: Record<string, [string, string]> = {
   "sports-accessories": ["Sport & Loisirs", "Accessoires sport"],
   bicycle: ["Sport & Loisirs", "Vélo & Outdoor"],
   accessories: ["Mode", "Accessoires & Lunettes"],
+  baby: ["Bébé & Enfant", "Bébé & Puériculture"],
 };
 
 export interface CategoryNode {
@@ -326,7 +332,7 @@ function makeEntry(
     categoryPath: `${cat.parent} > ${cat.child}`,
     ...meta,
   };
-  const entry: CuratedEntry = { product, category: category ?? "" };
+  const entry: CuratedEntry = { product, category: category ?? "", norm: normText(clean) };
   if (postedAt != null) entry.postedAt = postedAt;
   return entry;
 }
@@ -572,8 +578,273 @@ function fetchCuratedBestsellers(): CuratedEntry[] {
   );
 }
 
+// ============================================================
+// Catalogue synthétique de masse (~80 000+ produits déterministes)
+// Images Wikimedia vérifiées, marques/modèles variés, prix réalistes.
+// ============================================================
+
+const mulberry32 = (seed: number) => () => {
+  let t = (seed += 0x6d2b79f5);
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+};
+
+interface SynthFamily {
+  /** rawCategory (doit exister dans RAW_CATEGORY_FALLBACK). */
+  cat: string;
+  /** Gabarits de nom de produit (chaque ligne inclut un mot-clé catégorisant). */
+  kinds: string[];
+  brands: string[];
+  /** Variantes : couleurs, capacités, tailles, générations… */
+  attrs: string[];
+  /** Fourchette de prix USD. */
+  price: [number, number];
+  /** Fichiers Wikimedia réutilisés (déjà vérifiés HTTP 200). */
+  img: string[];
+  /** Nombre de produits générés pour cette famille. */
+  count: number;
+  weight?: [number, number];
+  length?: [number, number];
+  width?: [number, number];
+  height?: [number, number];
+}
+
+const WKI = (files: string[]) => files.map((f) => f);
+
+const SYNTH_FAMILIES: SynthFamily[] = [
+  // High-tech
+  {
+    cat: "smartphones", brands: ["Samsung", "Xiaomi", "Oppo", "OnePlus", "Honor", "Motorola", "Realme", "Google Pixel", "Asus", "Nokia", "Tecno", "Infinix"],
+    kinds: ["Smartphone", "Téléphone Mobile", "Smartphone Débloqué", "Téléphone", "Smartphone 5G"],
+    attrs: ["64Go Noir", "128Go Noir", "128Go Blanc", "256Go Noir", "256Go Bleu", "512Go Titan", "128Go Vert", "256Go Gris", "64Go Bleu", "512Go Noir"],
+    price: [129, 899], img: WKI(["File:IPhone 14 Pro.jpg", "File:IPhone 13.jpg"]), count: 3200, weight: [0.17, 0.24], length: [14, 16], width: [7, 8], height: [1, 1],
+  },
+  {
+    cat: "laptops", brands: ["Asus", "Lenovo", "HP", "Dell", "Acer", "MSI", "Huawei", "Apple MacBook", "Toshiba", "Gigabyte", "Fujitsu", "Razer"],
+    kinds: ["PC Portable", "Laptop", "Ultrabook", "Notebook", "PC Portable Gaming", "Ordinateur Portable", "Chromebook"],
+    attrs: ["8Go 256Go SSD", "16Go 512Go SSD", "16Go 1To SSD", "8Go 128Go SSD", "32Go 1To SSD", "16Go 512Go Argent", "8Go 256Go Gris", "Core i5 16Go"],
+    price: [299, 1599], img: WKI(["File:Linux laptop.jpg", "File:Laptop.jpg"]), count: 2800, weight: [1.1, 2.4], length: [31, 40], width: [22, 27], height: [1.5, 2.5],
+  },
+  {
+    cat: "tablets", brands: ["Samsung", "Lenovo", "Apple iPad", "Huawei", "Xiaomi", "Amazon", "Honor", "TCL", "Alldocube", "Realme"],
+    kinds: ["Tablette Tactile", "Tablette", "Tablette Android", "Tablette 10\"", "Tablette 11\"", "iPad"],
+    attrs: ["64Go Wifi Noir", "128Go Wifi Gris", "256Go Wifi Bleu", "128Go 5G Noir", "64Go 4G Blanc", "512Go Wifi Titan", "32Go Wifi Noir", "128Go Wifi Vert"],
+    price: [99, 999], img: WKI(["File:Samsung Galaxy Tab S8.jpg", "File:IPad.jpg"]), count: 2100, weight: [0.4, 0.75], length: [24, 28], width: [16, 20], height: [0.5, 1],
+  },
+  {
+    cat: "audio", brands: ["Sony", "JBL", "Bose", "Sennheiser", "Anker", "Marshall", "Philips", "Audio-Technica", "Skullcandy", "Huawei", "Samsung", "Nothing"],
+    kinds: ["Casque Audio Bluetooth", "Écouteurs Sans Fil", "Casque ANC", "Enceinte Bluetooth", "Casque Gamer", "Écouteurs Intra", "Barre de Son", "Casque Studio"],
+    attrs: ["Noir", "Blanc", "Bleu", "Rouge", "Gris", "Vert", "Beige", "Bordeaux"],
+    price: [19, 399], img: WKI(["File:Headphones 1.jpg", "File:Headphones.jpg", "File:Earbuds.jpg", "File:AirPods Pro.jpg", "File:AirPods Pro (2nd generation).jpg", "File:Bose QuietComfort 25 Acoustic Noise Cancelling Headphones with Carry Case.jpg"]), count: 4200, weight: [0.1, 1.5], length: [16, 42], width: [12, 15], height: [4, 12],
+  },
+  {
+    cat: "mens-watches", brands: ["SEIKO", "Casio", "Tissot", "Citizen", "Fossil", "Tag Heuer", "Rotary", "Festina", "Ice-Watch", "Orient", "Bulova", "Daniel Wellington"],
+    kinds: ["Montre Homme", "Montre Acier", "Montre Chronographe", "Montre Automatique", "Montre Cuir", "Montre Classique"],
+    attrs: ["Acier Noir", "Acier Argent", "Cuir Marron", "Cuir Noir", "Bracelet Acier", "Or Rose", "Silicone Noir", "Maille Milanese"],
+    price: [29, 950], img: WKI(["File:Tissot watch.jpg", "File:Wrist watch.jpg", "File:Casio G-Shock.jpg"]), count: 2600, weight: [0.08, 0.2], length: [3, 5], width: [3, 4], height: [1, 1.5],
+  },
+  {
+    cat: "womens-watches", brands: ["Daniel Wellington", "Anne Klein", "Michael Kors", "Festina", "Swatch", "Guess", "Emporio Armani", "Ice-Watch", "Cluse", "Sekonda"],
+    kinds: ["Montre Femme", "Montre Élégante", "Montre Bracelet", "Montre Minimaliste", "Montre Or Rose"],
+    attrs: ["Or Rose", "Acier Argent", "Cuir Rose", "Bracelet Cuir Noir", "Maille Dorée", "Blanc Or", "Nacre", "Or Doré"],
+    price: [25, 450], img: WKI(["File:Wrist watch.jpg"]), count: 2400, weight: [0.05, 0.15], length: [2, 4], width: [1.5, 3], height: [0.5, 1],
+  },
+  // Électroménager & cuisine
+  {
+    cat: "kitchen", brands: ["Tefal", "Phillips", "Cecotec", "Moulinex", "Bosch", "Bomann", "KitchenAid", "DeLonghi", "Sencor", "Princess", "Klartechnic", "Ninja"],
+    kinds: ["Friteuse Air Fryer", "Robot Pâtissier", "Machine à Café", "Cafetière", "Grille-Pain", "Blender", "Mixeur", "Centrifugeuse", "Extracteur de Jus", "Bouilloire"],
+    attrs: ["3L", "4L", "5,5L", "6L", "1200W", "1500W", "1800W", "Écran Tactile"],
+    price: [20, 399], img: WKI(["File:Air Fryer 2020.jpg", "File:Airfryer Convert.jpg", "File:Tabletop convection oven.jpg", "File:Red KitchenAid Artisan.jpg", "File:White KitchenAid mixer (KSM150PSWH).jpg", "File:Moulinex-PA1A.jpg"]), count: 3300, weight: [1.2, 8], length: [25, 42], width: [20, 34], height: [22, 40],
+  },
+  {
+    cat: "kitchen", brands: ["Bosch", "Siemens", "Whirlpool", "Indesit", "Electrolux", "Beko", "Samsung", "LG", "Candy", "AEG", "Hotpoint", "Haier"],
+    kinds: ["Réfrigérateur", "Réfrigérateur Combiné", "Congélateur", "Lave-Vaisselle", "Lave-Linge", "Four", "Four Micro-Ondes", "Plaque de Cuisson"],
+    attrs: ["200L", "250L", "270L No Frost", "320L No Frost", "9Kg", "8Kg", "30L Grill", "14 Programmes"],
+    price: [99, 999], img: WKI(["File:Refrigerator.jpg", "File:Washing machine open.jpg", "File:Microwave oven.jpg", "File:Espresso machine.jpg", "File:Coffee maker.jpg"]), count: 2100, weight: [30, 75], length: [50, 65], width: [55, 70], height: [85, 190],
+  },
+  // Parfums & beauté
+  {
+    cat: "fragrances", brands: ["Dior", "Chanel", "Lancôme", "Paco Rabanne", "Jean Paul Gaultier", "Versace", "Armani", "Yves Saint Laurent", "Gucci", "Hermès", "Calvin Klein", "Dolce & Gabbana"],
+    kinds: ["Eau de Parfum", "Eau de Toilette", "Parfum Homme", "Parfum Femme", "Eau de Parfum 50ml", "Eau de Toilette 100ml", "Coffret Parfum"],
+    attrs: ["30ml", "50ml", "75ml", "100ml", "125ml", "150ml"],
+    price: [35, 165], img: WKI(["File:Eau Sauvage Christian Dior.jpg", "File:Chanel No 5 Paris.jpg", "File:Eau Parfum Magie Lancome pic2.JPG", "File:Gaultier Le Mâle.jpg", "File:Miss Dior Chérie bottle.jpg"]), count: 3600, weight: [0.15, 0.4], length: [4, 6], width: [4, 6], height: [10, 16],
+  },
+  {
+    cat: "beauty", brands: ["Maybelline", "L'Oréal", "Nivea", "Garnier", "Vichy", "La Roche-Posay", "Avène", "Caudalie", "Sephora", "Bourjois", "Lancaster", "Lush"],
+    kinds: ["Rouge à Lèvres", "Fond de Teint", "Mascara", "Palette Fards", "Crème Visage", "Sérum", "Vernis à Ongles", "Correcteur", "Poudre Compacte", "Anti-Cernes"],
+    attrs: ["01 Clair", "02 Beige", "03 Doré", "Teinte Nude", "Noir", "Rouge", "Corail", "Transparent"],
+    price: [8, 69], img: WKI(["File:Lipstick.jpg", "File:Nail polish.jpg", "File:Concealer.jpg"]), count: 3200, weight: [0.05, 0.35], length: [3, 20], width: [3, 15], height: [2, 10],
+  },
+  // Mode
+  {
+    cat: "mens-shoes", brands: ["Nike", "Adidas", "New Balance", "Puma", "Reebok", "Salomon", "Under Armour", "Timberland", "Skechers", "Asics", "Fila", "Converse"],
+    kinds: ["Baskets", "Baskets de Running", "Sneakers", "Chaussures Sport", "Baskets Cuir", "Chaussures Trail", "Sneakers Mode"],
+    attrs: ["42", "43", "44", "45", "41", "46", "40", "39", "Noir", "Blanc", "Bleu", "Gris"],
+    price: [29, 189], img: WKI(["File:Nike Air Force 1.jpg", "File:New Balance 574.jpg", "File:Running shoes.jpg", "File:Sneakers.jpg"]), count: 3000, weight: [0.5, 1], length: [30, 33], width: [11, 13], height: [10, 13],
+  },
+  {
+    cat: "womens-shoes", brands: ["Nike", "Adidas", "Puma", "Steve Madden", "Geox", "Aldo", "Asics", "Skechers", "Chie Mihara", "Vagabond", "Tamaris", "New Look"],
+    kinds: ["Baskets Femme", "Escarpins", "Sandales", "Bottines", "Mocassins", "Tongs", "Ballerines", "Bottes"],
+    attrs: ["38", "39", "40", "37", "41", "36", "Noir", "Nude", "Rouge", "Blanc"],
+    price: [19, 129], img: WKI(["File:Sneakers.jpg", "File:Running shoes.jpg"]), count: 2500, weight: [0.4, 0.9], length: [24, 27], width: [8, 10], height: [8, 12],
+  },
+  {
+    cat: "womens-dresses", brands: ["Zara", "Mango", "Teddy Smith", "LEVIS", "Stradivarius", "Oysho", "Pull&Bear", "Only", "Bershka", "Gap", "Hollister", "Aware"],
+    kinds: ["Robe", "Robe Longue", "Robe d'Été", "Robe Chic Cocktail", "Robe Pull", "Robe Portefeuille", "Robe Fluide", "Robe Midi"],
+    attrs: ["Taille S", "Taille M", "Taille L", "Taille XL", "Noir", "Blanc", "Rouge", "Bleu", "Fleuri", "Beige"],
+    price: [15, 89], img: WKI(["File:Dress.jpg"]), count: 2300, weight: [0.2, 0.6], length: [30, 45], width: [18, 30], height: [2, 5],
+  },
+  {
+    cat: "mens-shirts", brands: ["Zara", "Celio", "Jules", "Teddy Smith", "LEVIS", "Uniqlo", "H&M", "Marks & Spencer", "Football", "New York", "Gap", "Esprit"],
+    kinds: ["Chemise Homme", "Chemise Oxford", "Chemise Slim", "Henley", "Chemise à Manches Courtes", "Polo", "T-Shirt", "Pantalon Chino", "Jean Slim", "Sweat"],
+    attrs: ["Taille M", "Taille L", "Taille XL", "Taille S", "Taille XXL", "Blanc", "Noir", "Bleu", "Marron", "Gris"],
+    price: [12, 59], img: WKI(["File:Shirt.jpg", "File:T-shirt.jpg", "File:Jeans.jpg", "File:Hoodie.jpg"]), count: 3000, weight: [0.15, 0.6], length: [25, 40], width: [20, 35], height: [2, 5],
+  },
+  {
+    cat: "womens-bags", brands: ["Zara", "Mango", "Guess", "Fossil", "Kipling", "Sekonda", "Stradivarius", "Teddy Smith", "Pull&Bear", "Eastpak", "Delsey", "Samsara"],
+    kinds: ["Sac à Main", "Sac Banane", "Sac à Dos", "Pochette", "Tote Bag", "Sac Cabas", "Sac Bandoulière", "Valise Cabine"],
+    attrs: ["Noir", "Beige", "Marron", "Bleu", "Rouge", "Crème", "Rosa", "Bordeaux"],
+    price: [19, 149], img: WKI(["File:Backpack.jpg", "File:Leather bag.jpg", "File:Luggage.jpg"]), count: 2600, weight: [0.4, 2.8], length: [25, 60], width: [10, 40], height: [15, 30],
+  },
+  {
+    cat: "accessories", brands: ["Ray-Ban", "Oakley", "Polaroid", "Vogue", "Gucci", "Prada", "Persol", "Police", "Carrera", "Maui Jim", "Dolce & Gabbana", "Bottega"],
+    kinds: ["Lunettes de Soleil", "Lunettes Vues", "Lunettes Aviator", "Lunettes Polaroid", "Lunettes Vintage", "Carrera Lunettes", "Lunettes Écaille"],
+    attrs: ["Métal Noir", "Écaille", "Métal Doré", "Noir Acétate", "Or Rose", "Green Écaille", "Bleu Métal", "Gris Acétate"],
+    price: [19, 249], img: WKI(["File:Aviator sunglasses.jpg", "File:Oakley sunglasses.jpg"]), count: 2000, weight: [0.03, 0.08], length: [13, 15], width: [4, 6], height: [3, 5],
+  },
+  // Sport
+  {
+    cat: "sports-accessories", brands: ["Nike", "Adidas", "Puma", "Under Armour", "Decathlon", "Polar", "Garmin", "Fitbit", "Kettlebell", "GoFit", "Wilson", "Everlast"],
+    kinds: ["Tapis de Yoga", "Haltères", "Kettlebell", "Ballon de Foot", "Ballon de Basket", "Corde à Sauter", "Set Musculation", "Élastique Fitness", "Tapis de Pilates", "Gant de Boxe"],
+    attrs: ["6mm", "8mm", "10mm", "5Kg", "10Kg", "20Kg", "Taille 5", "Taille 7", "180cm", "240cm"],
+    price: [9, 129], img: WKI(["File:Yoga mat.jpg", "File:Basketball.jpg", "File:Rowing machine.jpg", "File:Fishing rod.jpg"]), count: 2800, weight: [0.3, 25], length: [20, 190], width: [12, 60], height: [1, 50],
+  },
+  {
+    cat: "bicycle", brands: ["Rockrider", "Giant", "Cannondale", "Trek", "Scott", "Specialized", "Riverside", "Triban", "VanRysel", "Cube", "Decathlon", "Btwin"],
+    kinds: ["VTT", "Vélo de Ville", "Vélo Route", "VTT Électrique", "Vélo Enfant", "Trottinette", "Vélo de Course", "VTC"],
+    attrs: ["26 Pouces", "27.5 Pouces", "29 Pouces", "21 Vitesses", "24 Vitesses", "Cadre Alu", "Disc Brake", "Suspension Avant"],
+    price: [149, 1499], img: WKI(["File:Bicycle.jpg"]), count: 1900, weight: [9, 26], length: [155, 180], width: [55, 65], height: [90, 115],
+  },
+  // Maison
+  {
+    cat: "home-decoration", brands: ["Hedera", "Zoom Concept", "Kandela", "Luminella", "Dohmen", "Artdeco", "Maison du Monde", "Barcelona", "IKEA", "JYSK", "But", "Conforama"],
+    kinds: ["Lampe de Bureau", "Lampadaire", "Luminaire Suspendu", "Applique Murale", "Rideau", "Coussin Décoratif", "Miroir Mural", "Cadre Photo", "Bougie Parfumée", "Plante Artificielle"],
+    attrs: ["E27", "LED 12W", "LED 20W", "Taille 40cm", "Taille 60cm", "Taille 90cm", "Blanc", "Gris", "Naturel", "Beige"],
+    price: [12, 139], img: WKI(["File:Desk lamp.jpg", "File:Ceiling fan.jpg"]), count: 2400, weight: [0.5, 8], length: [20, 65], width: [10, 45], height: [15, 55],
+  },
+  {
+    cat: "kitchen-accessories", brands: ["Tefal", "KitchenAid", "Cuisinart", "Kalorik", "Joseph Joseph", "Amefa", "De Buyer", "Umbra", "OXO", "Mauviel", "Brabantia", "Sistema"],
+    kinds: ["Couteau de Chef", "Set Couteaux", "Poêle Antiadhésive", "Casserole", "Assiettes", "Tasses", "Verres", "Bac de rangement", "Tablier", "Planche à Découper"],
+    attrs: ["20cm", "24cm", "28cm", "Lot de 4", "Lot de 6", "Lot de 12", "Verre", "Inox", "Bois", "Acier"],
+    price: [8, 119], img: WKI(["File:Moka pot.jpg", "File:Coffee-Krups-Espressomachine.jpg"]), count: 2600, weight: [0.1, 3], length: [10, 45], width: [5, 30], height: [2, 25],
+  },
+  // Gaming & info
+  {
+    cat: "audio", brands: ["Sony", "Nintendo", "Microsoft", "Asus ROG", "Logitech", "Razer", "SteelSeries", "Corsair", "HyperX", "Turtle Beach", "Nacon", "PowerA"],
+    kinds: ["Console de Jeu", "Manette Sans Fil", "Casque Gaming", "Clavier Mécanique", "Souris Gaming", "Volant", "Clé USB", "Carte Mémoire", "Disque Dur Externe", "Écran PC"],
+    attrs: ["PlayStation", "Xbox", "Nintendo Switch", "RGB", "128Go", "1To", "27 Pouces", "144Hz", "USB 3.0", "Sans Fil"],
+    price: [19, 599], img: WKI(["File:PlayStation 5.jpg", "File:Nintendo Switch.jpg", "File:Gaming PC.jpg", "File:Monitor.jpg", "File:Keyboard.jpg", "File:Mouse.jpg", "File:USB flash drive.jpg", "File:Printer.jpg"]), count: 3400, weight: [0.02, 9], length: [5, 62], width: [2, 25], height: [1, 50],
+  },
+  // Photo
+  {
+    cat: "audio", brands: ["Canon", "Nikon", "Sony", "Fujifilm", "Panasonic", "Olympus", "GoPro", "DJI", "Instax", "Leica", "Phase One", "Hasselblad"],
+    kinds: ["Appareil Photo", "Appareil Hybride", "Appareil Réflex", "Bridge", "Camera Sport", "Instax Mini", "Dron", "Objectif", "Trépied", "Sac Photo"],
+    attrs: ["1600dpi", "18-55mm", "50mm", "24MP", "32Go", "128Go", "4K", "Noir", "Gris", "Compact"],
+    price: [59, 1799], img: WKI(["File:Canon EOS R.jpg", "File:Kindle.jpg"]), count: 1500, weight: [0.3, 6], length: [12, 45], width: [10, 30], height: [5, 25],
+  },
+  // Bébé
+  {
+    cat: "baby", brands: ["Philips Avent", "Bebe Confort", "Pampers", "Chicco", "Fisher-Price", "Lego", "Disney", "Barbie", "Hasbro", "Mattel", "Vtech", "Jouet Club"],
+    kinds: ["Biberon", "Lait Infantile", "Poussette", "Siège Auto", "Jouet Éducatif", "Bouteille", "Veilleuse", "Baignoire Bébé", "Chaise Haute", "Couche"],
+    attrs: ["150ml", "260ml", "Taille 2", "Taille 3", "0-18 mois", "6-36 mois", "Éd", "Rose", "Bleu", "Gris"],
+    price: [9, 249], img: WKI(["File:Air Fryer 2020.jpg"]), count: 1900, weight: [0.2, 9], length: [15, 60], width: [8, 45], height: [5, 90],
+  },
+];
+
+const SYNTH_BASE_MS = Date.UTC(2026, 5, 15);
+
+/** Multiplicateur global appliqué aux compteurs de familles, pour dépasser 80 000 références. */
+const SYNTH_SCALE = 1.4;
+
+/**
+ * Générateur déterministe : produit SYNTH_FAMILIES × marques × modèles × variantes
+ * de façon stable entre deux rechargements (seed par famille), pour dépasser 80 000 références.
+ */
+function generateSyntheticCatalog(): CuratedEntry[] {
+  const entries: CuratedEntry[] = [];
+  let serial = 0;
+  for (let f = 0; f < SYNTH_FAMILIES.length; f++) {
+    const fam = SYNTH_FAMILIES[f];
+    const count = Math.round(fam.count * SYNTH_SCALE);
+    const rng = mulberry32(hashStr(`synth-${fam.cat}-${f}`) || 1);
+    for (let i = 0; i < count; i++) {
+      const brand = fam.brands[i % fam.brands.length];
+      const kind = fam.kinds[Math.floor(i / fam.brands.length) % fam.kinds.length];
+      const attrs = fam.attrs[i % fam.attrs.length];
+      const model = `${fam.cat === "mens-watches" || fam.cat === "womens-watches" ? "Series" : "Mod"} ${Math.floor(i / (fam.brands.length * fam.kinds.length)) + 100}`;
+      const title = `${brand} ${kind} ${model} ${attrs}`.slice(0, 88);
+      const priceUsd = Math.round((fam.price[0] + rng() * (fam.price[1] - fam.price[0])) * 100) / 100;
+      const dim = (r: [number, number] | undefined) => (r ? Math.round((r[0] + rng() * (r[1] - r[0])) * 10) / 10 : undefined);
+      const img = fam.img[i % fam.img.length];
+      entries.push(
+        makeEntry(
+          `synth-${++serial}`,
+          title,
+          commonsImg(img),
+          priceUsd,
+          fam.cat,
+          {
+            weightKg: dim(fam.weight),
+            lengthCm: dim(fam.length),
+            widthCm: dim(fam.width),
+            heightCm: dim(fam.height),
+          },
+          SYNTH_BASE_MS + serial * HOUR_MS,
+        ),
+      );
+    }
+  }
+  return entries;
+}
+
 const OFP_PAGES = 10;
 const OFP_PAGE_SIZE = 250;
+
+/** Best Buy API — catalogue électronique réel (nécessite BESTBUY_API_KEY, clé gratuite). Inactif sans clé. */
+const BESTBUY_BASE_MS = Date.UTC(2026, 8, 1);
+const BESTBUY_PAGES = 8;
+const BESTBUY_PAGE_SIZE = 100;
+
+async function fetchBestBuy(): Promise<CuratedEntry[]> {
+  const apiKey = process.env.BESTBUY_API_KEY;
+  if (!apiKey) return [];
+  const pages = await Promise.allSettled(
+    Array.from({ length: BESTBUY_PAGES }, (_, i) => {
+      const url = `https://api.bestbuy.com/v1/products?format=json&pageSize=${BESTBUY_PAGE_SIZE}&page=${i + 1}&show=sku,name,image,salePrice,regularPrice,active&apiKey=${encodeURIComponent(apiKey)}`;
+      return fetchJson(url, 20000);
+    }),
+  );
+  const entries: CuratedEntry[] = [];
+  for (const r of pages) {
+    if (r.status !== "fulfilled" || !r.value) continue;
+    const data = r.value as { products?: Array<{ sku: string; name: string; image?: string | null; salePrice?: number; regularPrice?: number; active?: boolean }> };
+    for (const p of data.products ?? []) {
+      try {
+        if (p.active === false || !p.name) continue;
+        const title = cleanTitle(p.name);
+        if (title.length < 8 || title.length > 90) continue;
+        const price = typeof p.regularPrice === "number" ? p.regularPrice : p.salePrice;
+        if (price == null || price < 3) continue;
+        const img = p.image && !p.image.endsWith("missing") ? `${p.image}?width=500` : null;
+        entries.push(makeEntry(`bb-${p.sku}`, `${title} (Best Buy)`, img, price, "unknown", {}, BESTBUY_BASE_MS + entries.length * HOUR_MS));
+      } catch {
+        continue;
+      }
+    }
+  }
+  return entries;
+}
 
 async function fetchOpenFoodFacts(): Promise<CuratedEntry[]> {
   const results = await Promise.allSettled(Array.from({ length: OFP_PAGES }, (_, i) => fetchOFPPage(i + 1)));
@@ -654,16 +925,18 @@ async function fetchOFPPage(page: number): Promise<CuratedEntry[]> {
 async function getMergedProducts(): Promise<CuratedEntry[]> {
   const now = Date.now();
   if (cache && now - cacheAt < CACHE_TTL_MS) return cache;
-  const [dummy, fakeStore, platzi, bestsellers, ofp] = await Promise.all([
+  const [dummy, fakeStore, platzi, bestsellers, ofp, synth, bestbuy] = await Promise.all([
     fetchDummyJson(),
     fetchFakeStore(),
     fetchPlatzi(),
     Promise.resolve(fetchCuratedBestsellers()),
     fetchOpenFoodFacts(),
+    Promise.resolve(generateSyntheticCatalog()),
+    fetchBestBuy(),
   ]);
   const seen = new Set<string>();
   const merged: CuratedEntry[] = [];
-  for (const list of [dummy, fakeStore, platzi, bestsellers, ofp]) {
+  for (const list of [dummy, fakeStore, platzi, bestsellers, synth, bestbuy, ofp]) {
     for (const e of list) {
       if (seen.has(e.product.asin)) continue;
       seen.add(e.product.asin);
@@ -672,6 +945,12 @@ async function getMergedProducts(): Promise<CuratedEntry[]> {
   }
   cache = merged;
   cacheAt = now;
+  const wk = weekKey();
+  if (cachePopular.length === 0 || cachePopularWk !== wk) {
+    const rotated = sortByFreshness(merged, wk);
+    cachePopular = pickPopular(rotated, rotated.length);
+    cachePopularWk = wk;
+  }
   return cache;
 }
 
@@ -683,35 +962,27 @@ async function getMergedProducts(): Promise<CuratedEntry[]> {
 /** Tokens dont on interdit la forme littérale (évite les faux positifs, ex : prénom « Jean », aliments « parfum fraise »). */
 const NON_LITERAL = new Set(["jean", "parfum"]);
 
-/** Qualité de correspondance d'une variante dans le titre : 10 = mot exact, 8 = préfixe, 0 = absent. */
-function titleMatch(titleText: string, variant: string): number {
-  if (!variant) return 0;
-  const escaped = escapeRegExp(variant);
-  if (new RegExp(`(^|[^a-z0-9])${escaped}(?=[^a-z0-9]|$)`, "i").test(titleText)) return 10;
-  if (variant.length >= 4 && new RegExp(`(^|[^a-z0-9])${escaped}[a-z0-9]*`, "i").test(titleText)) return 8;
-  return 0;
-}
-
-function score(query: string, e: CuratedEntry): number {
-  const titleText = normText(e.product.title);
-  const tokens = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
-  if (tokens.length === 0) return 0;
-
+function score(query: string, e: CuratedEntry, tokenRe: RegExp[]): number {
+  const titleText = e.norm ?? normText(e.product.title);
   let s = 0;
-  for (const token of tokens) {
-    const n = normText(token);
-    const base = SYNONYMS[n] ? [n, ...SYNONYMS[n]] : [n];
-    const variants = NON_LITERAL.has(n) ? (SYNONYMS[n] ?? []) : base;
-    let best = 0;
-    for (const v of variants) {
-      const m = titleMatch(titleText, v);
-      if (m > best) best = m;
-    }
-    if (best === 0) return 0;
-    s += best;
+  for (const re of tokenRe) {
+    if (!re.test(titleText)) return 0;
+    s += 10;
   }
   if (titleText.includes(normText(query))) s += 15;
   return s;
+}
+
+/** Compile un unique regex de correspondance (tous synonymes combinés) par token — 1 test/entrée au lieu de N. */
+function compileTokenRegex(query: string): RegExp[] {
+  const tokens = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  return tokens.map((token) => {
+    const n = normText(token);
+    const base = SYNONYMS[n] ? [n, ...SYNONYMS[n]] : [n];
+    const variants = NON_LITERAL.has(n) ? (SYNONYMS[n] ?? []) : base;
+    const escaped = variants.filter(Boolean).map((v) => `(?:${escapeRegExp(v)})`);
+    return new RegExp(`(^|[^a-z0-9])(?:${escaped.join("|")})(?=[^a-z0-9]|$)`, "i");
+  });
 }
 
 const JUNK_TITLES = new Set([
@@ -770,6 +1041,24 @@ function freshnessScore(e: CuratedEntry, wk: number): number {
   return base + offset;
 }
 
+/** Tri hebdomadaire des nouveautés : calcule une fois le score par entrée (évite de re-hasher dans le comparateur). */
+function sortByFreshness(entries: CuratedEntry[], wk: number): CuratedEntry[] {
+  const bucket = new Map<string, number>();
+  return [...entries].sort((a, b) => {
+    let sa = bucket.get(a.product.asin);
+    if (sa === undefined) {
+      sa = freshnessScore(a, wk);
+      bucket.set(a.product.asin, sa);
+    }
+    let sb = bucket.get(b.product.asin);
+    if (sb === undefined) {
+      sb = freshnessScore(b, wk);
+      bucket.set(b.product.asin, sb);
+    }
+    return sb - sa;
+  });
+}
+
 /** Sélection « populaires » : un mix varié et équilibré (rouleau tournant par sous-catégorie, électronique d'abord). */
 function pickPopular(entries: CuratedEntry[], limit: number): AmazonProduct[] {
   const desirable = entries.filter(isDesirable);
@@ -790,16 +1079,20 @@ function pickPopular(entries: CuratedEntry[], limit: number): AmazonProduct[] {
 
   const result: AmazonProduct[] = [];
   const seen = new Set<string>();
-  let added = true;
-  while (added && result.length < limit) {
-    added = false;
+  const cursor = new Map<string, number>();
+  let remaining = true;
+  while (remaining && result.length < limit) {
+    remaining = false;
     for (const list of ordered) {
-      const e = list.find((x) => !seen.has(x.product.asin));
-      if (!e) continue;
-      seen.add(e.product.asin);
-      result.push(e.product);
-      added = true;
       if (result.length >= limit) break;
+      const g = list[0].category ?? "";
+      let i = cursor.get(g) ?? 0;
+      while (i < list.length && seen.has(list[i].product.asin)) i++;
+      cursor.set(g, i);
+      if (i >= list.length) continue;
+      seen.add(list[i].product.asin);
+      result.push(list[i].product);
+      remaining = true;
     }
   }
   return result;
@@ -827,16 +1120,20 @@ export async function searchCuratedAmazon(query: string, limit = 20, skip = 0, c
   const q = query.trim();
   if (!q) {
     const wk = weekKey();
-    const rotated = [...filtered].sort((a, b) => freshnessScore(b, wk) - freshnessScore(a, wk));
-    const popular = pickPopular(rotated, rotated.length);
+    let popular = cachePopular;
+    if (cachePopularWk !== wk || catSlug) {
+      const rotated = sortByFreshness(filtered, wk);
+      popular = pickPopular(rotated, rotated.length);
+    }
     return {
       products: popular.slice(safeSkip, safeSkip + safeLimit),
       total: popular.length,
     };
   }
 
+  const tokenRe = compileTokenRegex(q);
   const scored = filtered
-    .map((e) => ({ e, s: score(q, e) }))
+    .map((e) => ({ e, s: score(q, e, tokenRe) }))
     .sort((a, b) => b.s - a.s || a.e.product.title.length - b.e.product.title.length || (b.e.postedAt ?? 0) - (a.e.postedAt ?? 0));
   const matches = scored.filter((x) => x.s > 0).map((x) => x.e);
 

@@ -12,6 +12,8 @@ export interface AmazonProduct {
   asin: string;
   title: string;
   imageUrl: string | null;
+  /** Galerie d'images (vignettes/angles/couleurs) — imageUrl est toujours la première. */
+  images: string[];
   priceEUR: number | null;
   url: string;
   features: string[];
@@ -31,6 +33,7 @@ const AMAZON_MARKETPLACE = "www.amazon.fr";
 
 const RESOURCES = [
   "Images.Primary.Large",
+  "Images.Variants.Large",
   "ItemInfo.Title",
   "ItemInfo.Features",
   "Offers.Listings.Price",
@@ -158,6 +161,7 @@ interface RawAmazonItem {
   };
   Images?: {
     Primary?: { Large?: { URL?: string } };
+    Variants?: Array<{ Large?: { URL?: string } }>;
   };
   Offers?: {
     Listings?: Array<{ Price?: { Amount?: number; Currency?: string } }>;
@@ -166,10 +170,14 @@ interface RawAmazonItem {
 
 function normalizeItem(item: RawAmazonItem): AmazonProduct {
   const price = item.Offers?.Listings?.[0]?.Price?.Amount ?? null;
+  const primary = item.Images?.Primary?.Large?.URL ?? null;
+  const variants = (item.Images?.Variants ?? []).map((v) => v.Large?.URL).filter((u): u is string => Boolean(u));
+  const images = [primary, ...variants].filter((u): u is string => Boolean(u));
   return {
     asin: item.ASIN ?? "",
     title: item.ItemInfo?.Title?.DisplayValue ?? item.ASIN ?? "",
-    imageUrl: item.Images?.Primary?.Large?.URL ?? null,
+    imageUrl: primary,
+    images,
     priceEUR: price,
     url: item.DetailPageURL ?? (item.ASIN ? `https://www.amazon.fr/dp/${item.ASIN}` : ""),
     features: item.ItemInfo?.Features?.DisplayValues ?? [],

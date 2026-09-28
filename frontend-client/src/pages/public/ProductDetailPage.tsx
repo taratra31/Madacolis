@@ -68,6 +68,7 @@ export function ProductDetailPage() {
   const [quote, setQuote] = useState<Quote | null>(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [cartModalOpen, setCartModalOpen] = useState(false);
+  const [activeImage, setActiveImage] = useState(0);
 
   const { data, isFetching, isError } = useQuery({
     queryKey: ["product-detail", id],
@@ -86,9 +87,12 @@ export function ProductDetailPage() {
   const selectedTransitaire = transitaires.find((t) => t.id === transitaireId) ?? transitaires[0];
 
   const product = data?.product;
+  const gallery = [product?.imageUrl, ...(product?.images ?? [])].filter((u): u is string => Boolean(u));
+  const activeSrc = gallery[0] ?? product?.imageUrl ?? null;
 
   useEffect(() => {
     if (!product) return;
+    setActiveImage(0);
     if (product.weightKg != null) setWeightKg(product.weightKg);
     if (product.lengthCm != null) setLengthCm(product.lengthCm);
     if (product.widthCm != null) setWidthCm(product.widthCm);
@@ -179,11 +183,35 @@ export function ProductDetailPage() {
 
       <div className="grid gap-8 lg:grid-cols-2">
         <Reveal variant="zoom" className="overflow-hidden rounded-3xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-          {product.imageUrl ? (
-            <img src={product.imageUrl} alt={product.title} className="mx-auto aspect-square w-full object-contain p-6" />
-          ) : (
-            <div className="flex aspect-square items-center justify-center text-slate-300">
-              <Package className="size-16" />
+          <div className="relative aspect-square">
+            {activeSrc ? (
+              <img key={activeImage} src={activeSrc} alt={`${product.title} — photo ${activeImage + 1}`} className="animate-fade-up mx-auto aspect-square w-full object-contain p-6" />
+            ) : (
+              <div className="flex h-full items-center justify-center text-slate-300">
+                <Package className="size-16" />
+              </div>
+            )}
+            {gallery.length > 1 && (
+              <span className="absolute right-3 top-3 rounded-full bg-slate-900/60 px-2.5 py-1 text-xs font-semibold text-white">
+                {activeImage + 1}/{gallery.length}
+              </span>
+            )}
+          </div>
+          {gallery.length > 1 && (
+            <div className="flex gap-2 overflow-x-auto border-t border-slate-100 p-3 dark:border-slate-800">
+              {gallery.map((src, i) => (
+                <button
+                  key={i}
+                  onClick={() => setActiveImage(i)}
+                  className={cn(
+                    "size-16 shrink-0 overflow-hidden rounded-xl border-2 transition",
+                    i === activeImage ? "border-blue-600" : "border-transparent opacity-70 hover:opacity-100",
+                  )}
+                  aria-label={`Photo ${i + 1}`}
+                >
+                  <img src={src} alt="" className="h-full w-full object-contain bg-white" />
+                </button>
+              ))}
             </div>
           )}
         </Reveal>

@@ -1,5 +1,6 @@
 import { http } from "./client";
 import type {
+  CatalogProduct,
   HomeData,
   Payment,
   QuoteResult,
@@ -15,6 +16,7 @@ interface ApiProduct {
   asin: string;
   title: string;
   imageUrl?: string;
+  images?: string[];
   priceEUR?: number | null;
   category?: string;
   brand?: string;
@@ -24,21 +26,24 @@ interface ApiProduct {
   heightCm?: number;
 }
 
+const mapProduct = (p: ApiProduct): CatalogProduct => ({
+  id: p.asin,
+  name: p.title,
+  brand: p.brand ?? "",
+  category: p.category ?? "Divers",
+  priceEUR: p.priceEUR ?? null,
+  image: p.imageUrl ?? "",
+  images: p.images?.length ? p.images : undefined,
+  weightKg: p.weightKg ?? 0.5,
+  lengthCm: p.lengthCm,
+  widthCm: p.widthCm,
+  heightCm: p.heightCm,
+});
+
 export const getProducts = (limit = 10, skip = 0) =>
   http.get<{ success: boolean; products: ApiProduct[]; total?: number }>(`/pricing/marketplace/products?limit=${limit}&skip=${skip}`).then((res) => ({
     ...res,
-    products: res.products.map((p) => ({
-      id: p.asin,
-      name: p.title,
-      brand: p.brand ?? "",
-      category: p.category ?? "Divers",
-      priceEUR: p.priceEUR ?? null,
-      image: p.imageUrl ?? "",
-      weightKg: p.weightKg ?? 0.5,
-      lengthCm: p.lengthCm,
-      widthCm: p.widthCm,
-      heightCm: p.heightCm,
-    })),
+    products: res.products.map(mapProduct),
   }));
 
 export const searchProducts = (query: string, limit = 50) =>
@@ -46,18 +51,7 @@ export const searchProducts = (query: string, limit = 50) =>
     `/pricing/marketplace/amazon/search?q=${encodeURIComponent(query)}&limit=${limit}`,
   ).then((res) => ({
     ...res,
-    products: res.products.map((p) => ({
-      id: p.asin,
-      name: p.title,
-      brand: p.brand ?? "",
-      category: p.category ?? "Divers",
-      priceEUR: p.priceEUR ?? null,
-      image: p.imageUrl ?? "",
-      weightKg: p.weightKg ?? 0.5,
-      lengthCm: p.lengthCm,
-      widthCm: p.widthCm,
-      heightCm: p.heightCm,
-    })),
+    products: res.products.map(mapProduct),
   }));
 
 export const quoteShipment = (payload: {

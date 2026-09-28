@@ -129,6 +129,8 @@ export interface AmazonProduct {
   asin: string;
   title: string;
   imageUrl: string | null;
+  /** Galerie d'images (angles/couleurs) — la première est imageUrl. */
+  images?: string[];
   priceEUR: number | null;
   url: string;
   features: string[];

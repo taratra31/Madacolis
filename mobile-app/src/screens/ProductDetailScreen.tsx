@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Image, StyleSheet, Text, View, Pressable } from "react-native";
+import { Image, StyleSheet, Text, View, Pressable, ScrollView } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Screen, Button } from "../components/ui";
 import { colors, radius, spacing } from "../theme";
@@ -18,6 +18,8 @@ export function ProductDetailScreen({ route, navigation }: Props) {
   const { product } = route.params;
   const { addItem } = useCart();
   const [added, setAdded] = useState(false);
+  const [activeImage, setActiveImage] = useState(0);
+  const gallery = [product.image, ...(product.images ?? [])].filter(Boolean);
 
   const handleAdd = () => {
     addItem(product);
@@ -27,8 +29,25 @@ export function ProductDetailScreen({ route, navigation }: Props) {
 
   return (
     <Screen>
-      {product.image ? (
-        <Image source={{ uri: product.image }} style={styles.image} resizeMode="cover" />
+      {gallery.length > 0 ? (
+        <View>
+          <Image source={{ uri: gallery[activeImage] }} style={styles.image} resizeMode="cover" />
+          {gallery.length > 1 ? (
+            <View style={styles.thumbRow}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.thumbScroller}>
+                {gallery.map((uri, i) => (
+                  <Pressable
+                    key={i}
+                    onPress={() => setActiveImage(i)}
+                    style={[styles.thumb, i === activeImage ? styles.thumbActive : null]}
+                  >
+                    <Image source={{ uri }} style={styles.thumbImg} resizeMode="cover" />
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+          ) : null}
+        </View>
       ) : (
         <View style={[styles.image, styles.noImage]}>
           <Ionicons name="cube-outline" size={56} color={colors.textMuted} />
@@ -68,6 +87,11 @@ export function ProductDetailScreen({ route, navigation }: Props) {
 const styles = StyleSheet.create({
   image: { width: "100%", height: 220, borderRadius: radius.lg, backgroundColor: colors.subtle },
   noImage: { alignItems: "center", justifyContent: "center" },
+  thumbRow: { marginTop: spacing.sm },
+  thumbScroller: { gap: spacing.sm, paddingVertical: 2 },
+  thumb: { width: 48, height: 48, borderRadius: 10, overflow: "hidden", borderWidth: 2, borderColor: "transparent", backgroundColor: colors.subtle },
+  thumbActive: { borderColor: colors.primary },
+  thumbImg: { width: "100%", height: "100%" },
   meta: { fontSize: 11, fontWeight: "700", color: colors.textMuted, textTransform: "uppercase", letterSpacing: 0.4, marginTop: spacing.lg },
   name: { fontSize: 20, fontWeight: "800", color: colors.text, marginTop: spacing.md },
   price: { fontSize: 24, fontWeight: "800", color: colors.text, marginTop: 4 },

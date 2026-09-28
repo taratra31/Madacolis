@@ -319,13 +319,17 @@ function makeEntry(
   category?: string,
   meta?: { weightKg?: number; lengthCm?: number; widthCm?: number; heightCm?: number },
   postedAt?: number,
+  /** Galerie d'images complémentaire — la première (imageUrl) est dédupliquée si présente. */
+  extraImages?: string[],
 ): CuratedEntry {
   const clean = cleanTitle(title);
   const cat = classifyCategory(clean, category);
+  const gallery = [imageUrl, ...(extraImages ?? [])].filter((u): u is string => Boolean(u));
   const product: AmazonProduct = {
     asin: id,
     title: clean,
     imageUrl,
+    images: gallery,
     priceEUR: priceUsd != null ? Math.round(priceUsd * USD_TO_EUR * 100) / 100 : null,
     url: toAmazonUrl(clean),
     features: [],
@@ -419,12 +423,12 @@ async function fetchPlatzi(): Promise<CuratedEntry[]> {
     return data
       .map((p) => {
         const title = cleanTitleForCatalog(typeof p.title === "string" ? p.title : "");
-        const imageUrl =
-          (Array.isArray(p.images) ? p.images.find((i): i is string => typeof i === "string" && i.startsWith("http")) : null) ?? null;
-        return { title, imageUrl, price: p.price ?? null, category: p.category?.name ?? "misc" };
+        const images = (Array.isArray(p.images) ? p.images.filter((i): i is string => typeof i === "string" && i.startsWith("http")) : []).slice(0, GALLERY_MAX);
+        const imageUrl = images[0] ?? null;
+        return { title, imageUrl, images, price: p.price ?? null, category: p.category?.name ?? "misc" };
       })
       .filter((p) => p.title.length >= 8 && VALID_TITLE.test(p.title))
-      .map((p, i) => makeEntry(`platzi-${i}`, p.title, p.imageUrl, p.price, p.category, undefined, PLATZI_BASE_MS + i * HOUR_MS));
+      .map((p, i) => makeEntry(`platzi-${i}`, p.title, p.imageUrl, p.price, p.category, undefined, PLATZI_BASE_MS + i * HOUR_MS, p.images.slice(1)));
   } catch {
     return [];
   }
@@ -560,12 +564,29 @@ const CURATED_BESTSELLERS: CuratedBestseller[] = [
 
 const commonsImg = (file: string): string => `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(file)}?width=500`;
 
+/** Pools d'images regroupés par catégorie brute (toutes familles confondues), pour enrichir les bestsellers. */
+let familyImgByCat: Record<string, string[]> | null = null;
+function imgPoolForCat(cat: string): string[] {
+  if (!familyImgByCat) {
+    familyImgByCat = {};
+    for (const fam of SYNTH_FAMILIES) {
+      const list = (familyImgByCat[fam.cat] ??= []);
+      for (const img of fam.img) if (!list.includes(img)) list.push(img);
+    }
+  }
+  return familyImgByCat[cat] ?? [];
+}
+
 function fetchCuratedBestsellers(): CuratedEntry[] {
-  return CURATED_BESTSELLERS.map((b, i) =>
-    makeEntry(
+  return CURATED_BESTSELLERS.map((b, i) => {
+    const own = commonsImg(b.img);
+    const gallery = [...new Set([b.img, ...imgPoolForCat(b.rawCategory)])]
+      .slice(0, GALLERY_MAX)
+      .map((f) => commonsImg(f));
+    return makeEntry(
       `best-${i + 1}`,
       b.title,
-      commonsImg(b.img),
+      own,
       b.priceUsd,
       b.rawCategory,
       {
@@ -575,8 +596,9 @@ function fetchCuratedBestsellers(): CuratedEntry[] {
         heightCm: b.heightCm,
       },
       BEST_BASE_MS + (CURATED_BESTSELLERS.length - i) * HOUR_MS,
-    ),
-  );
+      gallery.filter((u) => u !== own),
+    );
+  });
 }
 
 // ============================================================
@@ -619,7 +641,7 @@ const SYNTH_FAMILIES: SynthFamily[] = [
     cat: "smartphones", brands: ["Samsung", "Xiaomi", "Oppo", "OnePlus", "Honor", "Motorola", "Realme", "Google Pixel", "Asus", "Nokia", "Tecno", "Infinix"],
     kinds: ["Smartphone", "Téléphone Mobile", "Smartphone Débloqué", "Téléphone", "Smartphone 5G"],
     attrs: ["64Go Noir", "128Go Noir", "128Go Blanc", "256Go Noir", "256Go Bleu", "512Go Titan", "128Go Vert", "256Go Gris", "64Go Bleu", "512Go Noir"],
-    price: [129, 899], img: WKI(["File:IPhone 14 Pro.jpg", "File:IPhone 13.jpg"]), count: 3200, weight: [0.17, 0.24], length: [14, 16], width: [7, 8], height: [1, 1],
+    price: [129, 899], img: WKI(["File:IPhone 14 Pro.jpg", "File:IPhone 13.jpg", "File:Apple iPhone 15 Pro.jpg", "File:IPhone (Plus).jpg", "File:Samsung Galaxy S25 Ultra smartphone - side view.jpg", "File:Samsung Galaxy S20.jpg"]), count: 3200, weight: [0.17, 0.24], length: [14, 16], width: [7, 8], height: [1, 1],
   },
   {
     cat: "laptops", brands: ["Asus", "Lenovo", "HP", "Dell", "Acer", "MSI", "Huawei", "Apple MacBook", "Toshiba", "Gigabyte", "Fujitsu", "Razer"],
@@ -631,7 +653,7 @@ const SYNTH_FAMILIES: SynthFamily[] = [
     cat: "tablets", brands: ["Samsung", "Lenovo", "Apple iPad", "Huawei", "Xiaomi", "Amazon", "Honor", "TCL", "Alldocube", "Realme"],
     kinds: ["Tablette Tactile", "Tablette", "Tablette Android", "Tablette 10\"", "Tablette 11\"", "iPad"],
     attrs: ["64Go Wifi Noir", "128Go Wifi Gris", "256Go Wifi Bleu", "128Go 5G Noir", "64Go 4G Blanc", "512Go Wifi Titan", "32Go Wifi Noir", "128Go Wifi Vert"],
-    price: [99, 999], img: WKI(["File:Samsung Galaxy Tab S8.jpg", "File:IPad.jpg"]), count: 2100, weight: [0.4, 0.75], length: [24, 28], width: [16, 20], height: [0.5, 1],
+    price: [99, 999], img: WKI(["File:Samsung Galaxy Tab S8.jpg", "File:IPad.jpg", "File:Apple iPad Pro 11.jpg", "File:IPad Pro 11 silver.jpg", "File:Apple iPad.jpg"]), count: 2100, weight: [0.4, 0.75], length: [24, 28], width: [16, 20], height: [0.5, 1],
   },
   {
     cat: "audio", brands: ["Sony", "JBL", "Bose", "Sennheiser", "Anker", "Marshall", "Philips", "Audio-Technica", "Skullcandy", "Huawei", "Samsung", "Nothing"],
@@ -643,13 +665,13 @@ const SYNTH_FAMILIES: SynthFamily[] = [
     cat: "mens-watches", brands: ["SEIKO", "Casio", "Tissot", "Citizen", "Fossil", "Tag Heuer", "Rotary", "Festina", "Ice-Watch", "Orient", "Bulova", "Daniel Wellington"],
     kinds: ["Montre Homme", "Montre Acier", "Montre Chronographe", "Montre Automatique", "Montre Cuir", "Montre Classique"],
     attrs: ["Acier Noir", "Acier Argent", "Cuir Marron", "Cuir Noir", "Bracelet Acier", "Or Rose", "Silicone Noir", "Maille Milanese"],
-    price: [29, 950], img: WKI(["File:Tissot watch.jpg", "File:Wrist watch.jpg", "File:Casio G-Shock.jpg"]), count: 2600, weight: [0.08, 0.2], length: [3, 5], width: [3, 4], height: [1, 1.5],
+    price: [29, 950], img: WKI(["File:Tissot watch.jpg", "File:Wrist watch.jpg", "File:Casio G-Shock.jpg", "File:Fossil wristwatch with white background.jpg", "File:Smartwatch-828786.jpg", "File:Apple Watch Sport.jpg"]), count: 2600, weight: [0.08, 0.2], length: [3, 5], width: [3, 4], height: [1, 1.5],
   },
   {
     cat: "womens-watches", brands: ["Daniel Wellington", "Anne Klein", "Michael Kors", "Festina", "Swatch", "Guess", "Emporio Armani", "Ice-Watch", "Cluse", "Sekonda"],
     kinds: ["Montre Femme", "Montre Élégante", "Montre Bracelet", "Montre Minimaliste", "Montre Or Rose"],
     attrs: ["Or Rose", "Acier Argent", "Cuir Rose", "Bracelet Cuir Noir", "Maille Dorée", "Blanc Or", "Nacre", "Or Doré"],
-    price: [25, 450], img: WKI(["File:Wrist watch.jpg"]), count: 2400, weight: [0.05, 0.15], length: [2, 4], width: [1.5, 3], height: [0.5, 1],
+    price: [25, 450], img: WKI(["File:Wrist watch.jpg", "File:Fossil wristwatch with white background.jpg", "File:Titan watch.jpg", "File:Junghans Mega.jpg"]), count: 2400, weight: [0.05, 0.15], length: [2, 4], width: [1.5, 3], height: [0.5, 1],
   },
   // Électroménager & cuisine
   {
@@ -662,7 +684,7 @@ const SYNTH_FAMILIES: SynthFamily[] = [
     cat: "kitchen", brands: ["Bosch", "Siemens", "Whirlpool", "Indesit", "Electrolux", "Beko", "Samsung", "LG", "Candy", "AEG", "Hotpoint", "Haier"],
     kinds: ["Réfrigérateur", "Réfrigérateur Combiné", "Congélateur", "Lave-Vaisselle", "Lave-Linge", "Four", "Four Micro-Ondes", "Plaque de Cuisson"],
     attrs: ["200L", "250L", "270L No Frost", "320L No Frost", "9Kg", "8Kg", "30L Grill", "14 Programmes"],
-    price: [99, 999], img: WKI(["File:Refrigerator.jpg", "File:Washing machine open.jpg", "File:Microwave oven.jpg", "File:Espresso machine.jpg", "File:Coffee maker.jpg"]), count: 2100, weight: [30, 75], length: [50, 65], width: [55, 70], height: [85, 190],
+    price: [99, 999], img: WKI(["File:Refrigerator.jpg", "File:Washing machine open.jpg", "File:Microwave oven.jpg", "File:Espresso machine.jpg", "File:Coffee maker.jpg", "File:Samsung Refrigerator RF24FSEDBSR.jpg", "File:Food into a refrigerator - 20111002.jpg"]), count: 2100, weight: [30, 75], length: [50, 65], width: [55, 70], height: [85, 190],
   },
   // Parfums & beauté
   {
@@ -688,13 +710,13 @@ const SYNTH_FAMILIES: SynthFamily[] = [
     cat: "womens-shoes", brands: ["Nike", "Adidas", "Puma", "Steve Madden", "Geox", "Aldo", "Asics", "Skechers", "Chie Mihara", "Vagabond", "Tamaris", "New Look"],
     kinds: ["Baskets Femme", "Escarpins", "Sandales", "Bottines", "Mocassins", "Tongs", "Ballerines", "Bottes"],
     attrs: ["38", "39", "40", "37", "41", "36", "Noir", "Nude", "Rouge", "Blanc"],
-    price: [19, 129], img: WKI(["File:Sneakers.jpg", "File:Running shoes.jpg"]), count: 2500, weight: [0.4, 0.9], length: [24, 27], width: [8, 10], height: [8, 12],
+    price: [19, 129], img: WKI(["File:Sneakers.jpg", "File:Running shoes.jpg", "File:High heels shoes.jpg"]), count: 2500, weight: [0.4, 0.9], length: [24, 27], width: [8, 10], height: [8, 12],
   },
   {
     cat: "womens-dresses", brands: ["Zara", "Mango", "Teddy Smith", "LEVIS", "Stradivarius", "Oysho", "Pull&Bear", "Only", "Bershka", "Gap", "Hollister", "Aware"],
     kinds: ["Robe", "Robe Longue", "Robe d'Été", "Robe Chic Cocktail", "Robe Pull", "Robe Portefeuille", "Robe Fluide", "Robe Midi"],
     attrs: ["Taille S", "Taille M", "Taille L", "Taille XL", "Noir", "Blanc", "Rouge", "Bleu", "Fleuri", "Beige"],
-    price: [15, 89], img: WKI(["File:Dress.jpg"]), count: 2300, weight: [0.2, 0.6], length: [30, 45], width: [18, 30], height: [2, 5],
+    price: [15, 89], img: WKI(["File:Dress.jpg", "File:Cocktail dress.jpg", "File:Little black dress.jpg", "File:Evening gown.jpg"]), count: 2300, weight: [0.2, 0.6], length: [30, 45], width: [18, 30], height: [2, 5],
   },
   {
     cat: "mens-shirts", brands: ["Zara", "Celio", "Jules", "Teddy Smith", "LEVIS", "Uniqlo", "H&M", "Marks & Spencer", "Football", "New York", "Gap", "Esprit"],
@@ -712,7 +734,7 @@ const SYNTH_FAMILIES: SynthFamily[] = [
     cat: "accessories", brands: ["Ray-Ban", "Oakley", "Polaroid", "Vogue", "Gucci", "Prada", "Persol", "Police", "Carrera", "Maui Jim", "Dolce & Gabbana", "Bottega"],
     kinds: ["Lunettes de Soleil", "Lunettes Vues", "Lunettes Aviator", "Lunettes Polaroid", "Lunettes Vintage", "Carrera Lunettes", "Lunettes Écaille"],
     attrs: ["Métal Noir", "Écaille", "Métal Doré", "Noir Acétate", "Or Rose", "Green Écaille", "Bleu Métal", "Gris Acétate"],
-    price: [19, 249], img: WKI(["File:Aviator sunglasses.jpg", "File:Oakley sunglasses.jpg"]), count: 2000, weight: [0.03, 0.08], length: [13, 15], width: [4, 6], height: [3, 5],
+    price: [19, 249], img: WKI(["File:Aviator sunglasses.jpg", "File:Oakley sunglasses.jpg", "File:Vuarnet sunglasses (9082163704).jpg"]), count: 2000, weight: [0.03, 0.08], length: [13, 15], width: [4, 6], height: [3, 5],
   },
   // Sport
   {
@@ -725,20 +747,20 @@ const SYNTH_FAMILIES: SynthFamily[] = [
     cat: "bicycle", brands: ["Rockrider", "Giant", "Cannondale", "Trek", "Scott", "Specialized", "Riverside", "Triban", "VanRysel", "Cube", "Decathlon", "Btwin"],
     kinds: ["VTT", "Vélo de Ville", "Vélo Route", "VTT Électrique", "Vélo Enfant", "Trottinette", "Vélo de Course", "VTC"],
     attrs: ["26 Pouces", "27.5 Pouces", "29 Pouces", "21 Vitesses", "24 Vitesses", "Cadre Alu", "Disc Brake", "Suspension Avant"],
-    price: [149, 1499], img: WKI(["File:Bicycle.jpg"]), count: 1900, weight: [9, 26], length: [155, 180], width: [55, 65], height: [90, 115],
+    price: [149, 1499], img: WKI(["File:Bicycle.jpg", "File:Hybrid bicycle.jpg", "File:Commuting by bicycle.jpg"]), count: 1900, weight: [9, 26], length: [155, 180], width: [55, 65], height: [90, 115],
   },
   // Maison
   {
     cat: "home-decoration", brands: ["Hedera", "Zoom Concept", "Kandela", "Luminella", "Dohmen", "Artdeco", "Maison du Monde", "Barcelona", "IKEA", "JYSK", "But", "Conforama"],
     kinds: ["Lampe de Bureau", "Lampadaire", "Luminaire Suspendu", "Applique Murale", "Rideau", "Coussin Décoratif", "Miroir Mural", "Cadre Photo", "Bougie Parfumée", "Plante Artificielle"],
     attrs: ["E27", "LED 12W", "LED 20W", "Taille 40cm", "Taille 60cm", "Taille 90cm", "Blanc", "Gris", "Naturel", "Beige"],
-    price: [12, 139], img: WKI(["File:Desk lamp.jpg", "File:Ceiling fan.jpg"]), count: 2400, weight: [0.5, 8], length: [20, 65], width: [10, 45], height: [15, 55],
+    price: [12, 139], img: WKI(["File:Desk lamp.jpg", "File:Ceiling fan.jpg", "File:A desk lamp.jpg"]), count: 2400, weight: [0.5, 8], length: [20, 65], width: [10, 45], height: [15, 55],
   },
   {
     cat: "kitchen-accessories", brands: ["Tefal", "KitchenAid", "Cuisinart", "Kalorik", "Joseph Joseph", "Amefa", "De Buyer", "Umbra", "OXO", "Mauviel", "Brabantia", "Sistema"],
     kinds: ["Couteau de Chef", "Set Couteaux", "Poêle Antiadhésive", "Casserole", "Assiettes", "Tasses", "Verres", "Bac de rangement", "Tablier", "Planche à Découper"],
     attrs: ["20cm", "24cm", "28cm", "Lot de 4", "Lot de 6", "Lot de 12", "Verre", "Inox", "Bois", "Acier"],
-    price: [8, 119], img: WKI(["File:Moka pot.jpg", "File:Coffee-Krups-Espressomachine.jpg"]), count: 2600, weight: [0.1, 3], length: [10, 45], width: [5, 30], height: [2, 25],
+    price: [8, 119], img: WKI(["File:Moka pot.jpg", "File:Coffee-Krups-Espressomachine.jpg", "File:Chef's knife.jpg", "File:Frying pan with black handle.jpg", "File:Frying Pan 2 2019-03-21.jpg"]), count: 2600, weight: [0.1, 3], length: [10, 45], width: [5, 30], height: [2, 25],
   },
   // Gaming & info
   {
@@ -752,14 +774,14 @@ const SYNTH_FAMILIES: SynthFamily[] = [
     cat: "audio", brands: ["Canon", "Nikon", "Sony", "Fujifilm", "Panasonic", "Olympus", "GoPro", "DJI", "Instax", "Leica", "Phase One", "Hasselblad"],
     kinds: ["Appareil Photo", "Appareil Hybride", "Appareil Réflex", "Bridge", "Camera Sport", "Instax Mini", "Dron", "Objectif", "Trépied", "Sac Photo"],
     attrs: ["1600dpi", "18-55mm", "50mm", "24MP", "32Go", "128Go", "4K", "Noir", "Gris", "Compact"],
-    price: [59, 1799], img: WKI(["File:Canon EOS R.jpg", "File:Kindle.jpg"]), count: 1500, weight: [0.3, 6], length: [12, 45], width: [10, 30], height: [5, 25],
+    price: [59, 1799], img: WKI(["File:Canon EOS R.jpg", "File:Canon EOS-1DX Mark III.jpg", "File:Quadcopter camera drone in flight.jpg", "File:Kindle.jpg"]), count: 1500, weight: [0.3, 6], length: [12, 45], width: [10, 30], height: [5, 25],
   },
   // Bébé
   {
     cat: "baby", brands: ["Philips Avent", "Bebe Confort", "Pampers", "Chicco", "Fisher-Price", "Lego", "Disney", "Barbie", "Hasbro", "Mattel", "Vtech", "Jouet Club"],
     kinds: ["Biberon", "Lait Infantile", "Poussette", "Siège Auto", "Jouet Éducatif", "Bouteille", "Veilleuse", "Baignoire Bébé", "Chaise Haute", "Couche"],
     attrs: ["150ml", "260ml", "Taille 2", "Taille 3", "0-18 mois", "6-36 mois", "Éd", "Rose", "Bleu", "Gris"],
-    price: [9, 249], img: WKI(["File:Air Fryer 2020.jpg"]), count: 1900, weight: [0.2, 9], length: [15, 60], width: [8, 45], height: [5, 90],
+    price: [9, 249], img: WKI(["File:Baby bottle.jpg", "File:Baby feeding bottle.jpg", "File:Gerber baby bottles.jpg", "File:Baby with bottle.jpg"]), count: 1900, weight: [0.2, 9], length: [15, 60], width: [8, 45], height: [5, 90],
   },
 ];
 
@@ -767,6 +789,27 @@ const SYNTH_BASE_MS = Date.UTC(2026, 5, 15);
 
 /** Multiplicateur global appliqué aux compteurs de familles, pour dépasser 80 000 références. */
 const SYNTH_SCALE = 1.4;
+
+/** Taille de galerie par produit synthétique (2 à 4 photos, distinctes si le pool de la famille le permet). */
+const GALLERY_MAX = 4;
+const GALLERY_MIN = 2;
+
+/**
+ * Galerie déterministe : rotation dans le pool d'images de la famille, décalée par produit
+ * pour que deux produits voisins ne montrent pas le même ordre de photos.
+ */
+function synthGallery(pool: string[], index: number): string[] {
+  const n = pool.length;
+  if (n === 0) return [];
+  const size = Math.min(Math.max(n, 1), GALLERY_MAX);
+  const out: string[] = [];
+  for (let k = 0; k < size; k++) out.push(pool[(index * 3 + k * 2 + 1) % n]);
+  const dedup = [...new Set(out)];
+  if (dedup.length < GALLERY_MIN && n > 1) {
+    for (let k = 0; dedup.length < GALLERY_MIN; k++) dedup.push(pool[(index + k) % n]);
+  }
+  return [...new Set(dedup)];
+}
 
 /**
  * Générateur déterministe : produit SYNTH_FAMILIES × marques × modèles × variantes
@@ -787,12 +830,13 @@ function generateSyntheticCatalog(): CuratedEntry[] {
       const title = `${brand} ${kind} ${model} ${attrs}`.slice(0, 88);
       const priceUsd = Math.round((fam.price[0] + rng() * (fam.price[1] - fam.price[0])) * 100) / 100;
       const dim = (r: [number, number] | undefined) => (r ? Math.round((r[0] + rng() * (r[1] - r[0])) * 10) / 10 : undefined);
-      const img = fam.img[i % fam.img.length];
+      const gallery = synthGallery(fam.img, i);
+      const img = commonsImg(gallery[0] ?? fam.img[0]);
       entries.push(
         makeEntry(
           `synth-${++serial}`,
           title,
-          commonsImg(img),
+          img,
           priceUsd,
           fam.cat,
           {
@@ -802,6 +846,7 @@ function generateSyntheticCatalog(): CuratedEntry[] {
             heightCm: dim(fam.height),
           },
           SYNTH_BASE_MS + serial * HOUR_MS,
+          gallery.slice(1).map((g) => commonsImg(g)),
         ),
       );
     }

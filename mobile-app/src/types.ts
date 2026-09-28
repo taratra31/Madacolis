@@ -78,6 +78,8 @@ export interface CatalogProduct {
   category: string;
   priceEUR: number | null;
   image: string;
+  /** Galerie d'images (angles/couleurs) — la première est la photo principale. */
+  images?: string[];
   weightKg: number;
   lengthCm?: number;
   widthCm?: number;

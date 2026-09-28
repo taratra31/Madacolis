@@ -19,6 +19,8 @@ const CACHE_TTL_MS = 10 * 60 * 1000;
 const USD_TO_EUR = 0.92;
 const FETCH_TIMEOUT_MS = 15000;
 const HOUR_MS = 3_600_000;
+const DAY_MS = 86_400_000;
+const WEEK_MS = 7 * DAY_MS;
 /** Dates de publication de référence (fixes, données synthétiques déterministes). */
 const DUMMY_BASE_MS = Date.UTC(2025, 9, 1);
 const FAKE_BASE_MS = Date.UTC(2025, 10, 1);
@@ -740,6 +742,34 @@ function isDesirable(e: CuratedEntry): boolean {
   return true;
 }
 
+/** Hash déterministe (FNV-1a) utilisé pour la rotation hebdomadaire des produits « à la une ». */
+function hashStr(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+const MONDAY_EPOCH_MS = Date.UTC(2024, 0, 1, 0, 0, 0, 0);
+
+/** Numéro de semaine ISO déterministe (change chaque lundi) — pilote la rotation des nouveautés. */
+function weekKey(now = Date.now()): number {
+  return Math.floor((now - MONDAY_EPOCH_MS) / WEEK_MS);
+}
+
+/**
+ * Score de « fraîcheur » = date de publication + un décalage pseudo-aléatoire renouvelé
+ * chaque semaine. Sans rien modifier, l'ordre des « Nouveaux arrivages » et des produits
+ * mis en avant tourne donc chaque semaine (nouveaux produits mis en avant).
+ */
+function freshnessScore(e: CuratedEntry, wk: number): number {
+  const base = e.postedAt ?? 0;
+  const offset = hashStr(`${e.product.asin}#${wk}`) % (26 * WEEK_MS);
+  return base + offset;
+}
+
 /** Sélection « populaires » : un mix varié et équilibré (rouleau tournant par sous-catégorie, électronique d'abord). */
 function pickPopular(entries: CuratedEntry[], limit: number): AmazonProduct[] {
   const desirable = entries.filter(isDesirable);
@@ -796,8 +826,9 @@ export async function searchCuratedAmazon(query: string, limit = 20, skip = 0, c
 
   const q = query.trim();
   if (!q) {
-    const byDate = [...filtered].sort((a, b) => (b.postedAt ?? 0) - (a.postedAt ?? 0));
-    const popular = pickPopular(byDate, byDate.length);
+    const wk = weekKey();
+    const rotated = [...filtered].sort((a, b) => freshnessScore(b, wk) - freshnessScore(a, wk));
+    const popular = pickPopular(rotated, rotated.length);
     return {
       products: popular.slice(safeSkip, safeSkip + safeLimit),
       total: popular.length,

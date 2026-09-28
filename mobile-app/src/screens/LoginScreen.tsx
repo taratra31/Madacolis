@@ -17,6 +17,7 @@ export function LoginScreen() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [demoLoading, setDemoLoading] = useState(false);
 
   const handleLogin = async () => {
     setError(null);
@@ -31,6 +32,18 @@ export function LoginScreen() {
       setError(e instanceof Error ? e.message : "Connexion impossible.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDemoLogin = async () => {
+    setError(null);
+    setDemoLoading(true);
+    try {
+      await login("customer@madacolis.mg", "Customer@123");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Session démo indisponible.");
+    } finally {
+      setDemoLoading(false);
     }
   };
 
@@ -62,6 +75,11 @@ export function LoginScreen() {
 
       <Button label="Se connecter" onPress={() => void handleLogin()} loading={loading} />
 
+      <View style={styles.demoBox}>
+        <Button label="Utiliser la session démo" variant="outline" onPress={() => void handleDemoLogin()} loading={demoLoading} />
+        <Text style={styles.demoHint}>Ouvrir une session client de démonstration (colis et paiements déjà présents).</Text>
+      </View>
+
       <View style={styles.footerRow}>
         <Text style={styles.footerText}>Pas encore de compte ?</Text>
         <Pressable onPress={() => navigation.navigate("Register")}>
@@ -90,4 +108,6 @@ const styles = StyleSheet.create({
   footerText: { color: colors.textSecondary, fontSize: 13 },
   link: { color: colors.primary, fontSize: 13, fontWeight: "700" },
   guestRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", marginTop: spacing.lg },
+  demoBox: { marginTop: spacing.lg, gap: 6 },
+  demoHint: { fontSize: 12, color: colors.textMuted, textAlign: "center", marginTop: 4 },
 });

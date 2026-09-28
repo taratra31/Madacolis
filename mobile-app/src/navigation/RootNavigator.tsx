@@ -61,25 +61,15 @@ function Tabs() {
   );
 }
 
-function AuthStackGuard() {
-  const { token } = useAuth();
+function AppStack() {
   return (
-    <Stack.Navigator>
-      {token ? (
-        <>
-          <Stack.Screen name="Tabs" component={Tabs} options={{ headerShown: false }} />
-          <Stack.Screen name="ProductDetail" component={ProductDetailScreen} options={{ title: "Produit" }} />
-          <Stack.Screen name="Quote" component={QuoteScreen} options={{ title: "Estimer un prix" }} />
-          <Stack.Screen name="Tracking" component={TrackingScreen} options={{ title: "Suivre un colis" }} />
-        </>
-      ) : (
-        <>
-          <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
-          <Stack.Screen name="Register" component={RegisterScreen} options={{ title: "Créer un compte" }} />
-          <Stack.Screen name="Quote" component={QuoteScreen} options={{ title: "Estimer un prix" }} />
-          <Stack.Screen name="Tracking" component={TrackingScreen} options={{ title: "Suivre un colis" }} />
-        </>
-      )}
+    <Stack.Navigator initialRouteName="Tabs">
+      <Stack.Screen name="Tabs" component={Tabs} options={{ headerShown: false }} />
+      <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Register" component={RegisterScreen} options={{ title: "Créer un compte" }} />
+      <Stack.Screen name="ProductDetail" component={ProductDetailScreen} options={{ title: "Produit" }} />
+      <Stack.Screen name="Quote" component={QuoteScreen} options={{ title: "Estimer un prix" }} />
+      <Stack.Screen name="Tracking" component={TrackingScreen} options={{ title: "Suivre un colis" }} />
     </Stack.Navigator>
   );
 }
@@ -89,7 +79,7 @@ export function RootNavigator() {
   if (!ready) return <Loading />;
   return (
     <NavigationContainer>
-      <AuthStackGuard />
+      <AppStack />
     </NavigationContainer>
   );
 }

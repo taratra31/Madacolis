@@ -23,12 +23,26 @@ const statusColor = (s: string): "green" | "amber" | "blue" | "red" | "slate" =>
 
 export function AccountScreen() {
   const navigation = useNavigation<Nav>();
-  const { user, logout } = useAuth();
+  const { user, login, logout } = useAuth();
   const [payingId, setPayingId] = useState<string | null>(null);
+  const [demoLoading, setDemoLoading] = useState(false);
+  const [demoError, setDemoError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const payments = useQuery({ queryKey: ["payments"], queryFn: getMyPayments, enabled: !!user });
   const shipments = useQuery({ queryKey: ["shipments"], queryFn: getMyShipments, enabled: !!user });
+
+  const handleDemoLogin = async () => {
+    setDemoError(null);
+    setDemoLoading(true);
+    try {
+      await login("customer@madacolis.mg", "Customer@123");
+    } catch (e) {
+      setDemoError(e instanceof Error ? e.message : "Session démo indisponible.");
+    } finally {
+      setDemoLoading(false);
+    }
+  };
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -47,6 +61,33 @@ export function AccountScreen() {
       setPayingId(null);
     }
   };
+
+  if (!user) {
+    return (
+      <Screen scroll={false}>
+        <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing.xxl }}>
+          <Card style={styles.profile}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>M</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.profileName}>Votre espace</Text>
+              <Text style={styles.profilePhone}>Connectez-vous pour suivre vos colis et vos paiements.</Text>
+            </View>
+          </Card>
+          <Card style={{ gap: spacing.md, marginBottom: spacing.lg }}>
+            <Button label="Se connecter" onPress={() => navigation.navigate("Login")} />
+            <Button label="Créer un compte" variant="outline" onPress={() => navigation.navigate("Register")} />
+          </Card>
+          <Card style={{ gap: spacing.sm }}>
+            <Button label="Utiliser la session démo" loading={demoLoading} onPress={() => void handleDemoLogin()} />
+            <Text style={styles.demoHint}>Session client de démonstration : colis et paiements déjà présents.</Text>
+          </Card>
+          {demoError ? <Text style={styles.error}>{demoError}</Text> : null}
+        </ScrollView>
+      </Screen>
+    );
+  }
 
   return (
     <Screen scroll={false}>
@@ -136,4 +177,6 @@ const styles = StyleSheet.create({
   listPrice: { fontSize: 14, fontWeight: "800", color: colors.primary },
   paymentRef: { fontSize: 12, color: colors.textSecondary },
   paymentMethod: { fontSize: 12, color: colors.textMuted, marginTop: spacing.sm },
+  demoHint: { fontSize: 12, color: colors.textMuted, textAlign: "center" },
+  error: { fontSize: 13, color: colors.danger, marginTop: spacing.md },
 });

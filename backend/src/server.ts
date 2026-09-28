@@ -6,6 +6,7 @@ import https from "node:https";
 import { createApp } from "./app.js";
 import { appConfig } from "./config/index.js";
 import { prisma } from "./config/prisma.js";
+import { warmCatalogCache } from "./services/marketplace-curated.service.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const HTTPS_PORT = Number(process.env.ADMIN_HTTPS_PORT ?? 5443);
@@ -16,6 +17,10 @@ async function main(): Promise<void> {
   // Vérifie la connexion à la base avant de démarrer
   await prisma.$queryRaw`SELECT 1`;
   console.log("✅ Connexion PostgreSQL établie");
+
+  // Pré-charge le catalogue (~86k produits) en arrière-plan pour limiter le temps
+  // de réponse du premier appel après redémarrage.
+  void warmCatalogCache().then((n) => console.log(`✅ Catalogue pré-chargé (${n.toLocaleString("fr-FR")} produits)`));
 
   const httpServer = http.createServer(app);
   httpServer.listen(appConfig.port, () => {

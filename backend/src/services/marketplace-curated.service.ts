@@ -17,6 +17,7 @@ interface CuratedEntry {
 
 let cache: CuratedEntry[] | null = null;
 let cacheAt = 0;
+let inflight: Promise<CuratedEntry[]> | null = null;
 /** « Populaires » pré-calculés (ordre rotatif hebdomadaire) — recalculé au remplissage du cache. */
 let cachePopular: AmazonProduct[] = [];
 let cachePopularWk = -1;
@@ -925,33 +926,47 @@ async function fetchOFPPage(page: number): Promise<CuratedEntry[]> {
 async function getMergedProducts(): Promise<CuratedEntry[]> {
   const now = Date.now();
   if (cache && now - cacheAt < CACHE_TTL_MS) return cache;
-  const [dummy, fakeStore, platzi, bestsellers, ofp, synth, bestbuy] = await Promise.all([
-    fetchDummyJson(),
-    fetchFakeStore(),
-    fetchPlatzi(),
-    Promise.resolve(fetchCuratedBestsellers()),
-    fetchOpenFoodFacts(),
-    Promise.resolve(generateSyntheticCatalog()),
-    fetchBestBuy(),
-  ]);
-  const seen = new Set<string>();
-  const merged: CuratedEntry[] = [];
-  for (const list of [dummy, fakeStore, platzi, bestsellers, synth, bestbuy, ofp]) {
-    for (const e of list) {
-      if (seen.has(e.product.asin)) continue;
-      seen.add(e.product.asin);
-      merged.push(e);
+  if (inflight) return inflight;
+  inflight = (async () => {
+    try {
+      const [dummy, fakeStore, platzi, bestsellers, ofp, synth, bestbuy] = await Promise.all([
+        fetchDummyJson(),
+        fetchFakeStore(),
+        fetchPlatzi(),
+        Promise.resolve(fetchCuratedBestsellers()),
+        fetchOpenFoodFacts(),
+        Promise.resolve(generateSyntheticCatalog()),
+        fetchBestBuy(),
+      ]);
+      const seen = new Set<string>();
+      const merged: CuratedEntry[] = [];
+      for (const list of [dummy, fakeStore, platzi, bestsellers, synth, bestbuy, ofp]) {
+        for (const e of list) {
+          if (seen.has(e.product.asin)) continue;
+          seen.add(e.product.asin);
+          merged.push(e);
+        }
+      }
+      cache = merged;
+      cacheAt = Date.now();
+      const wk = weekKey();
+      if (cachePopular.length === 0 || cachePopularWk !== wk) {
+        const rotated = sortByFreshness(merged, wk);
+        cachePopular = pickPopular(rotated, rotated.length);
+        cachePopularWk = wk;
+      }
+      return cache;
+    } finally {
+      inflight = null;
     }
-  }
-  cache = merged;
-  cacheAt = now;
-  const wk = weekKey();
-  if (cachePopular.length === 0 || cachePopularWk !== wk) {
-    const rotated = sortByFreshness(merged, wk);
-    cachePopular = pickPopular(rotated, rotated.length);
-    cachePopularWk = wk;
-  }
-  return cache;
+  })();
+  return inflight;
+}
+
+/** Pré-charge le catalogue au démarrage (hors du chemin de requête). */
+export async function warmCatalogCache(): Promise<number> {
+  const entries = await getMergedProducts();
+  return entries.length;
 }
 
 /**

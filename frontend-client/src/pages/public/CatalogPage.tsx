@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { ArrowDown, FolderTree, Package, PackageSearch, Shirt, ShoppingBag, Store, X } from "lucide-react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { ArrowDown, FolderTree, Loader2, Package, PackageSearch, Shirt, ShoppingBag, Store, X } from "lucide-react";
 import { AmazonSearchPanel, AlibabaPastePanel } from "@/components/catalog/MarketplaceSearch";
 import { ProductGrid } from "@/components/catalog/ProductCard";
 import { Button } from "@/components/ui/Button";
@@ -50,6 +50,7 @@ export function CatalogPage() {
       api<{ products: AmazonProduct[]; total: number }>("/pricing/marketplace/products", {
         params: { limit: listingLimit, category: category || undefined },
       }),
+    placeholderData: keepPreviousData,
   });
   const listingProducts = listing?.products ?? [];
   const listingTotal = listing?.total ?? 0;
@@ -152,7 +153,8 @@ export function CatalogPage() {
                     </span>
                   </div>
                   <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t("pages.catalog.listingNote")}</p>
-                  {listingFetching ? (
+                  {/* Pas de squelette quand des produits sont déjà affichés : on garde la grille et on ajoute la suite */}
+                  {!listingProducts.length ? (
                     <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
                       {Array.from({ length: 8 }).map((_, i) => (
                         <div key={i} className="animate-pulse overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800">
@@ -169,9 +171,14 @@ export function CatalogPage() {
                       <ProductGrid products={listingProducts.map(toCard)} className="mt-6" />
                     </Reveal>
                   )}
+                  {listingFetching && listingProducts.length > 0 ? (
+                    <div className="mt-6 flex items-center justify-center gap-2 text-sm text-slate-400">
+                      <Loader2 className="size-4 animate-spin" /> {t("pages.catalog.loadingMore")}
+                    </div>
+                  ) : null}
                   {listing && listingProducts.length < listingTotal ? (
                     <div className="mt-8 flex flex-col items-center gap-2">
-                      <Button variant="outline" onClick={() => setListingLimit((n) => n + 24)} loading={listingFetching}>
+                      <Button variant="outline" onClick={() => setListingLimit((n) => n + 24)} loading={listingFetching && !listingProducts.length}>
                         <ArrowDown className="size-4" /> {t("pages.catalog.viewMore")} ({listingProducts.length}/{listingTotal})
                       </Button>
                     </div>
